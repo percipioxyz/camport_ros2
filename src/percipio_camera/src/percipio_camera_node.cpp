@@ -102,6 +102,9 @@ void PercipioCameraNode::getParameters() {
 
         param_name_desc = stream_name[index] + "_camera_info_qos";
         setAndGetNodeParameter<std::string>(camera_info_qos_[index], param_name_desc, "default");
+
+        frame_id[index] = camera_name_ + "_" + stream_name[index] + "_frame";
+        optical_frame_id[index] = camera_name_ + "_" + stream_name[index] + "_optical_frame";
     }
 
     //registration flag
@@ -243,33 +246,12 @@ void PercipioCameraNode::setupPublishers() {
             topic, rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(camera_info_qos_profile),
             camera_info_qos_profile));
     }
-
-    _tf = std::make_shared<tf2_ros::TransformBroadcaster>(node_);
-    timer_ = node_->create_wall_timer(std::chrono::milliseconds(1000), std::bind(&PercipioCameraNode::broadcast_timer_callback, this));
 }
 
 void PercipioCameraNode::setupTopics() {
   getParameters();
   setupDevices();
   setupPublishers();
-}
-
-void PercipioCameraNode::broadcast_timer_callback() 
-{
-    rclcpp::Time now;
-    geometry_msgs::msg::TransformStamped t;
-    t.header.stamp = now;
-    t.header.frame_id = camera_link_frame_id_;
-    t.child_frame_id = camera_name_ + "_" + stream_name[DEPTH_STREAM] + "_optical_frame";
-    t.transform.translation.x = 0.0;
-    t.transform.translation.y = 0.0;
-    t.transform.translation.z = 0.0;
-    t.transform.rotation.x = 0.0;
-    t.transform.rotation.y = 0.0;
-    t.transform.rotation.z = 0.0;
-    t.transform.rotation.w = 1.0;
- 
-    _tf->sendTransform(t);
 }
 
 #define SUBSCRIVER_CHECK(has)  do {   \
@@ -288,7 +270,7 @@ void PercipioCameraNode::publishColorFrame(percipio_camera::VideoStream& stream)
 
     auto image_info = stream.getColorInfo();
     image_info.header.stamp = HWTimeUsToROSTime(stream.getColorStramTimestamp());
-    image_info.header.frame_id = camera_name_ + "_" + stream_name[COLOR_STREAM] + "_optical_frame";
+    image_info.header.frame_id = optical_frame_id[COLOR_STREAM];
     image_info.width = color.cols;
     image_info.height = color.rows;
     camera_info_publishers_[COLOR_STREAM]->publish(image_info);
@@ -297,7 +279,7 @@ void PercipioCameraNode::publishColorFrame(percipio_camera::VideoStream& stream)
     image_msg->header.stamp = HWTimeUsToROSTime(stream.getDepthStramTimestamp());
     image_msg->is_bigendian = false;
     image_msg->step = 3 * color.cols;
-    image_msg->header.frame_id = camera_name_ + "_" + stream_name[COLOR_STREAM] + "_optical_frame";
+    image_msg->header.frame_id = optical_frame_id[COLOR_STREAM];
     image_publishers_[COLOR_STREAM].publish(std::move(image_msg));
 }
 
@@ -325,7 +307,7 @@ void PercipioCameraNode::publishLeftIRFrame(percipio_camera::VideoStream& stream
 
     auto image_info = stream.getLeftIRInfo();
     image_info.header.stamp = HWTimeUsToROSTime(stream.getLeftIRStramTimestamp());
-    image_info.header.frame_id = camera_name_ + "_" + stream_name[LEFT_IR_STREAM] + "_optical_frame";
+    image_info.header.frame_id = optical_frame_id[LEFT_IR_STREAM];
     image_info.width = IR.cols;
     image_info.height = IR.rows;
     camera_info_publishers_[LEFT_IR_STREAM]->publish(image_info);
@@ -337,7 +319,7 @@ void PercipioCameraNode::publishLeftIRFrame(percipio_camera::VideoStream& stream
         image_msg->step = IR.cols;
     else
         image_msg->step = 2 * IR.cols;
-    image_msg->header.frame_id = camera_name_ + "_" + stream_name[LEFT_IR_STREAM] + "_optical_frame";
+    image_msg->header.frame_id = optical_frame_id[LEFT_IR_STREAM];
     image_publishers_[LEFT_IR_STREAM].publish(std::move(image_msg));
 }
 
@@ -365,7 +347,7 @@ void PercipioCameraNode::publishRightIRFrame(percipio_camera::VideoStream& strea
 
     auto image_info = stream.getRightIRInfo();
     image_info.header.stamp = HWTimeUsToROSTime(stream.getLeftIRStramTimestamp());
-    image_info.header.frame_id = camera_name_ + "_" + stream_name[RIGHT_IR_STREAM] + "_optical_frame";
+    image_info.header.frame_id = optical_frame_id[RIGHT_IR_STREAM];
     image_info.width = IR.cols;
     image_info.height = IR.rows;
     camera_info_publishers_[RIGHT_IR_STREAM]->publish(image_info);
@@ -377,7 +359,7 @@ void PercipioCameraNode::publishRightIRFrame(percipio_camera::VideoStream& strea
         image_msg->step = IR.cols;
     else
         image_msg->step = 2 * IR.cols;
-    image_msg->header.frame_id = camera_name_ + "_" + stream_name[RIGHT_IR_STREAM] + "_optical_frame";
+    image_msg->header.frame_id = optical_frame_id[RIGHT_IR_STREAM];
     image_publishers_[RIGHT_IR_STREAM].publish(std::move(image_msg));
 }
 
@@ -393,7 +375,7 @@ void PercipioCameraNode::publishDepthFrame(percipio_camera::VideoStream& stream)
             
     auto image_info = stream.getDepthInfo();
     image_info.header.stamp = HWTimeUsToROSTime(stream.getDepthStramTimestamp());
-    image_info.header.frame_id = camera_name_ + "_" + stream_name[DEPTH_STREAM] + "_optical_frame";
+    image_info.header.frame_id = optical_frame_id[DEPTH_STREAM];
     image_info.width = image.cols;
     image_info.height = image.rows;
     camera_info_publishers_[DEPTH_STREAM]->publish(image_info);
@@ -402,7 +384,7 @@ void PercipioCameraNode::publishDepthFrame(percipio_camera::VideoStream& stream)
     image_msg->header.stamp = HWTimeUsToROSTime(stream.getDepthStramTimestamp());
     image_msg->is_bigendian = false;
     image_msg->step = 2 * image.cols;
-    image_msg->header.frame_id = camera_name_ + "_" + stream_name[DEPTH_STREAM] + "_optical_frame";
+    image_msg->header.frame_id = optical_frame_id[DEPTH_STREAM];
     image_publishers_[DEPTH_STREAM].publish(std::move(image_msg));
 }
 
@@ -471,7 +453,7 @@ void PercipioCameraNode::publishColorPointCloud(percipio_camera::VideoStream& st
     modifier.resize(valid_count);
 
     point_cloud_msg->header.stamp = HWTimeUsToROSTime(stream.getPointCloudStramTimestamp());
-    point_cloud_msg->header.frame_id = camera_name_ + "_" + stream_name[DEPTH_STREAM] + "_optical_frame";;
+    point_cloud_msg->header.frame_id = optical_frame_id[DEPTH_STREAM];
     color_point_cloud_pub_->publish(std::move(point_cloud_msg));
 }
 
@@ -524,12 +506,58 @@ void PercipioCameraNode::publishPointCloud(percipio_camera::VideoStream& stream)
     }
 
     point_cloud_msg->header.stamp = HWTimeUsToROSTime(stream.getPointCloudStramTimestamp());
-    point_cloud_msg->header.frame_id = camera_name_ + "_" + stream_name[DEPTH_STREAM] + "_optical_frame";;
+    point_cloud_msg->header.frame_id = optical_frame_id[DEPTH_STREAM];
     point_cloud_pub_->publish(std::move(point_cloud_msg));
+}
+
+
+void PercipioCameraNode::publishStaticTF(const rclcpp::Time &t, const tf2::Vector3 &trans,
+                                   const tf2::Quaternion &q, const std::string &from,
+                                   const std::string &to) {
+  geometry_msgs::msg::TransformStamped msg;
+  msg.header.stamp = t;
+  msg.header.frame_id = from;
+  msg.child_frame_id = to;
+  msg.transform.translation.x = trans[2] / 1000.0;
+  msg.transform.translation.y = -trans[0] / 1000.0;
+  msg.transform.translation.z = -trans[1] / 1000.0;
+  msg.transform.rotation.x = q.getX();
+  msg.transform.rotation.y = q.getY();
+  msg.transform.rotation.z = q.getZ();
+  msg.transform.rotation.w = q.getW();
+
+  static_tf_msgs_.push_back(msg);
+}
+
+void PercipioCameraNode::publishStaticTransforms() {
+    tf2::Quaternion quaternion_optical;
+    quaternion_optical.setRPY(-M_PI / 2, 0.0, -M_PI / 2);
+    tf2::Vector3 zero_trans(0.0, 0.0, 0.0);
+    for (const auto &stream_index : PERCIPIO_IMAGE_STREAMS) {
+        if(stream_enable[stream_index]) {
+            tf2::Vector3 trans(0.0, 0.0, 0.0);
+            tf2::Quaternion Q = tf2::Quaternion(0.0, 0.0, 0.0, 1.0);
+
+            auto timestamp = node_->now();
+            std::string frame_id_ =  frame_id[stream_index];
+            std::string optical_frame_id_ =  optical_frame_id[stream_index];
+
+            publishStaticTF(timestamp, trans,      Q,                  camera_link_frame_id_,   frame_id_);
+            publishStaticTF(timestamp, zero_trans, quaternion_optical, frame_id_,               optical_frame_id_);
+        }
+    }
+
+    static_tf_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
+    static_tf_broadcaster_->sendTransform(static_tf_msgs_);
 }
 
 void PercipioCameraNode::onNewFrame(percipio_camera::VideoStream& stream) 
 {
+    if (!tf_published_) {
+      publishStaticTransforms();
+      tf_published_ = true;
+    }
+
     if(stream_enable[DEPTH_STREAM]) {
         publishDepthFrame(stream);
     }

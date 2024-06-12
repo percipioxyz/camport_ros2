@@ -9,7 +9,9 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 
+#include <tf2_ros/transform_listener.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/static_transform_broadcaster.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -57,6 +59,8 @@ class PercipioCameraNode {
         std::map<percipio_stream_index_pair, std::string>   stream_resolution;
         std::map<percipio_stream_index_pair, std::string>   stream_image_mode;
 
+        std::map<percipio_stream_index_pair, std::string>   frame_id;
+        std::map<percipio_stream_index_pair, std::string>   optical_frame_id;
         std::map<percipio_stream_index_pair, image_transport::Publisher> image_publishers_;
         std::map<percipio_stream_index_pair, rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr> camera_info_publishers_;
 
@@ -84,6 +88,14 @@ class PercipioCameraNode {
         int m_tof_filter_threshold = -1;
         int m_tof_channel = -1;
         int m_tof_HDR_ratio = -1;
+
+        std::vector<geometry_msgs::msg::TransformStamped> static_tf_msgs_;
+        std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_ = nullptr;
+
+        void publishStaticTF(const rclcpp::Time &t, const tf2::Vector3 &trans,
+                                   const tf2::Quaternion &q, const std::string &from,
+                                   const std::string &to);
+        void publishStaticTransforms();
 
         void startStreams();
         void onNewFrame(percipio_camera::VideoStream& stream);
