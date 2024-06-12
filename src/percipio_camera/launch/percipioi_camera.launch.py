@@ -25,13 +25,17 @@ def generate_launch_description():
         DeclareLaunchArgument('depth_qos', default_value='default'),
         DeclareLaunchArgument('depth_camera_info_qos', default_value='default'),
 
-        # Enable point cloud stream output
-        DeclareLaunchArgument('point_cloud_enable', default_value='true'),
-        DeclareLaunchArgument('color_point_cloud_enable', default_value='true'),
-        DeclareLaunchArgument('point_cloud_qos', default_value='default'),
-
         # Map depth image to color coordinate
         DeclareLaunchArgument('depth_registration_enable', default_value='true'),
+
+        # Enable point cloud stream output
+        DeclareLaunchArgument('point_cloud_enable', default_value='false'),
+
+        # Enable color point cloud stream,  
+        # depth_registration_enable will be automatically set to true
+        # point_cloud_enable will be automatically set to false
+        DeclareLaunchArgument('color_point_cloud_enable', default_value='true'),
+        DeclareLaunchArgument('point_cloud_qos', default_value='default'),
 
         DeclareLaunchArgument('left_ir_enable', default_value='true'),
         DeclareLaunchArgument('left_ir_qos', default_value='default'),

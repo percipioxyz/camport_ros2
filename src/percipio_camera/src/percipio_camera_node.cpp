@@ -200,10 +200,17 @@ void PercipioCameraNode::setupDevices() {
         depth_registration_enable = false;
     }
 
+    if(color_point_cloud_enable) {
+        point_cloud_enable = false;
+    }
+
     device_ptr->topics_depth_stream_enable(stream_enable[DEPTH_STREAM]);
     device_ptr->topics_point_cloud_enable(point_cloud_enable);
     device_ptr->topics_color_point_cloud_enable(color_point_cloud_enable);
     device_ptr->topics_depth_registration_enable(depth_registration_enable);
+
+    if(stream_enable[DEPTH_STREAM])
+        f_depth_scale = device_ptr->getDepthValueScale();
 
     startStreams();
 }

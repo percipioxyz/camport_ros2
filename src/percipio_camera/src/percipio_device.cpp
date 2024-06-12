@@ -416,6 +416,11 @@ INIT_FAIL:
     return ;
 }
 
+float PercipioDevice::getDepthValueScale()
+{
+    return f_scale_unit;
+}
+
 bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const std::string& resolution, const std::string& format)
 {
     TY_STATUS status;
@@ -612,6 +617,7 @@ void PercipioDevice::p3dStreamRecive(cv::Mat& depth, uint64_t& timestamp) {
             } else if(topics_color_p3d_) {
                 TY_CAMERA_EXTRINSIC extri_inv;
                 TYInvertExtrinsic(&cam_color_calib_data.extrinsic, &extri_inv);
+                TYMapDepthImageToPoint3d(&cam_depth_calib_data, targetDepth.cols, targetDepth.rows, (const uint16_t*)targetDepth.data, (TY_VECT_3F*)p3d.data, f_scale_unit);
                 TYMapPoint3dToPoint3d(&extri_inv, (TY_VECT_3F*)p3d.data, p3d.cols * p3d.rows, (TY_VECT_3F*)p3d.data);
                 VideoStreamPtr->PointCloudInit(p3d, &cam_color_intrinsic[0], timestamp);
             }

@@ -89,6 +89,8 @@ class PercipioCameraNode {
         int m_tof_channel = -1;
         int m_tof_HDR_ratio = -1;
 
+        float f_depth_scale = 1.f;
+
         std::vector<geometry_msgs::msg::TransformStamped> static_tf_msgs_;
         std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_ = nullptr;
 

@@ -67,6 +67,7 @@ class PercipioDevice
         bool set_tof_channel(const int chan);
         bool set_tof_HDR_ratio(const int ratio);
 
+        float getDepthValueScale();
 
         bool stream_open(const percipio_stream_index_pair& idx, const std::string& resolution, const std::string& format);
         bool stream_close(const percipio_stream_index_pair& idx);
