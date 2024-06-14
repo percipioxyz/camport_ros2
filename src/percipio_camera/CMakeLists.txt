@@ -129,7 +129,10 @@ else()
             LIBRARY DESTINATION lib
             RUNTIME DESTINATION bin
         )
+        
+        file(GLOB lib_files ${CMAKE_CURRENT_SOURCE_DIR}/camport3/lib/linux/lib_${ARCH}/*) 
 
+        install(FILES ${lib_files} DESTINATION lib)
         install(DIRECTORY include/ DESTINATION include)
         install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)
         install(TARGETS ${PROJECT_NAME}
