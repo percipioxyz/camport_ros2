@@ -1,10 +1,14 @@
 #include "percipio_device.h"
 #include "common.hpp"
 #include "TYCoordinateMapper.h"
+#include "crc32.hpp"
+#include "ParametersParse.hpp"
 
 namespace percipio_camera {
 
 #define INVALID_COMPONENT_ID        (0xFFFFFFFF)
+
+#define MAX_STORAGE_SIZE    (10*1024*1024)
 
 PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
     : alive(false),
@@ -31,6 +35,36 @@ PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
         TYCloseDevice(handle);
         TYCloseInterface(hIface);
         return;
+    }
+
+    //try load default parameters
+    uint32_t block_size;
+    uint8_t* blocks = new uint8_t[MAX_STORAGE_SIZE] ();
+    status = TYGetByteArraySize(handle, TY_COMPONENT_STORAGE, TY_BYTEARRAY_CUSTOM_BLOCK, &block_size);
+    if(status != TY_STATUS_OK) {
+        delete []blocks;
+    } else {
+      status = TYGetByteArray(handle, TY_COMPONENT_STORAGE, TY_BYTEARRAY_CUSTOM_BLOCK, blocks,  block_size);
+      if(status != TY_STATUS_OK) {
+          delete []blocks;
+      } else {
+        uint32_t crc_data = *(uint32_t*)blocks;
+        if(!crc_data) {
+            LOGE("The CRC check code is empty.");
+            delete []blocks;
+        } else {
+          uint8_t* js_string = blocks + sizeof(uint32_t);
+          uint32_t crc = crc32_bitwise(js_string, strlen((char*)js_string));
+          if(crc_data != crc) {
+              LOGE("The data in the storage area has a CRC check error.");
+              delete []blocks;
+          } else {
+            printf("Default json parameters :\n%s\n",  (const char* )js_string);
+            json_parse(handle, (const char* )js_string);
+            delete []blocks;
+          }
+        }
+      }
     }
 
     TYGetComponentIDs(handle, &allComps);
