@@ -9,6 +9,12 @@
 
 #include "percipio_camera_node.h"
 
+#if defined(ROS_HUMBLE)
+#include <cv_bridge/cv_bridge/cv_bridge.h>
+#else
+#include <cv_bridge/cv_bridge.h>
+#endif
+
 namespace percipio_camera {
 
 const static percipio_stream_index_pair DEPTH_STREAM{DEPTH, 0};
