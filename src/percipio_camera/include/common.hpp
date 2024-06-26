@@ -15,7 +15,7 @@
 #include "CommandLineParser.hpp"
 #include "CommandLineFeatureHelper.hpp"
 
-static inline int decodeCsiRaw10(unsigned char* src, unsigned short* dst, int width, int height)
+static inline int decodeCsiRaw10(unsigned char* src, unsigned char* dst, int width, int height)
 {
     if(width & 0x3) {
         return -1;
@@ -24,15 +24,20 @@ static inline int decodeCsiRaw10(unsigned char* src, unsigned short* dst, int wi
     for(size_t i = 0, j = 0; i < raw10_line_size * height; i+=5, j+=4)
     {
         //[A2 - A9] | [B2 - B9] | [C2 - C9] | [D2 - D9] | [A0A1-B0B1-C0C1-D0D1]
-        dst[j + 0] = ((uint16_t)src[i + 0] << 2) | ((src[i + 4] & 0x3)  >> 0);
-        dst[j + 1] = ((uint16_t)src[i + 1] << 2) | ((src[i + 4] & 0xc)  >> 2);
-        dst[j + 2] = ((uint16_t)src[i + 2] << 2) | ((src[i + 4] & 0x30) >> 4);
-        dst[j + 3] = ((uint16_t)src[i + 3] << 2) | ((src[i + 4] & 0xc0) >> 6);
+        //dst[j + 0] = ((uint16_t)src[i + 0] << 2) | ((src[i + 4] & 0x3)  >> 0);
+        //dst[j + 1] = ((uint16_t)src[i + 1] << 2) | ((src[i + 4] & 0xc)  >> 2);
+        //dst[j + 2] = ((uint16_t)src[i + 2] << 2) | ((src[i + 4] & 0x30) >> 4);
+        //dst[j + 3] = ((uint16_t)src[i + 3] << 2) | ((src[i + 4] & 0xc0) >> 6);
+
+        dst[j + 0] = src[i + 0];
+        dst[j + 1] = src[i + 1];
+        dst[j + 2] = src[i + 2];
+        dst[j + 3] = src[i + 3];
     }
     return 0;
 }
 
-static inline int decodeCsiRaw12(unsigned char* src, unsigned short* dst, int width, int height)
+static inline int decodeCsiRaw12(unsigned char* src, unsigned char* dst, int width, int height)
 {
     if(width & 0x1) {
         return -1;
@@ -41,8 +46,11 @@ static inline int decodeCsiRaw12(unsigned char* src, unsigned short* dst, int wi
     for(size_t i = 0, j = 0; i < raw12_line_size * height; i+=3, j+=2)
     {
         //[A4 - A11] | [B4 - B11] | [A0A1A2A3-B0B1B2B3]
-        dst[j + 0] = ((uint16_t)src[i + 0] << 4) | ((src[i + 2] & 0x0f)  >> 0);
-        dst[j + 1] = ((uint16_t)src[i + 1] << 4) | ((src[i + 2] & 0xf0)  >> 4);
+        //dst[j + 0] = ((uint16_t)src[i + 0] << 4) | ((src[i + 2] & 0x0f)  >> 0);
+        //dst[j + 1] = ((uint16_t)src[i + 1] << 4) | ((src[i + 2] & 0xf0)  >> 4);
+
+        dst[j + 0] = src[i + 0];
+        dst[j + 1] = src[i + 1];
     }
     return 0;
 }
@@ -66,19 +74,15 @@ static inline int decodeCsiRaw14(unsigned char* src, unsigned short* dst, int wi
 
 static inline int parseCsiRaw10(unsigned char* src, cv::Mat &dst, int width, int height)
 {
-    cv::Mat m(height, width, CV_16U);
-    decodeCsiRaw10(src, (ushort*)m.data, width, height);
-    //convert valid 10bit from lsb to msb, d = s * 64
-    dst = m * 64;
+    cv::Mat m(height, width, CV_8U);
+    decodeCsiRaw10(src, (uchar*)m.data, width, height);
     return 0;
 }
 
 static inline int parseCsiRaw12(unsigned char* src, cv::Mat &dst, int width, int height)
 {
-    cv::Mat m(height, width, CV_16U);
-    decodeCsiRaw12(src, (ushort*)m.data, width, height);
-    //convert valid 12bit from lsb to msb, d = s * 16
-    dst = m * 16;
+    cv::Mat m(height, width, CV_8U);
+    decodeCsiRaw12(src, (uchar*)m.data, width, height);
     return 0;
 }
 
@@ -87,7 +91,7 @@ static inline int parseIrFrame(const TY_IMAGE_DATA* img, cv::Mat* pIR)
   if (img->pixelFormat == TY_PIXEL_FORMAT_MONO16 || img->pixelFormat==TY_PIXEL_FORMAT_TOF_IR_MONO16){
     *pIR = cv::Mat(img->height, img->width, CV_16U, img->buffer).clone();
   } else if(img->pixelFormat == TY_PIXEL_FORMAT_CSI_MONO10) {
-    *pIR = cv::Mat(img->height, img->width, CV_16U);
+    *pIR = cv::Mat(img->height, img->width, CV_8U);
     parseCsiRaw10((uchar*)img->buffer, (*pIR), img->width, img->height);
   } else if(img->pixelFormat == TY_PIXEL_FORMAT_MONO) {
     *pIR = cv::Mat(img->height, img->width, CV_8U, img->buffer).clone();
@@ -165,9 +169,9 @@ static inline int parseBayer10Frame(const TY_IMAGE_DATA* img, cv::Mat* pColor)
     LOGE("Invalid bayer10 fmt!");
     return -1;
   }
-  cv::Mat raw16(img->height, img->width, CV_16U);
-  parseCsiRaw10((uchar*)img->buffer, raw16, img->width, img->height);
-  cv::cvtColor(raw16, *pColor, code);
+  cv::Mat raw8(img->height, img->width, CV_8U);
+  parseCsiRaw10((uchar*)img->buffer, raw8, img->width, img->height);
+  cv::cvtColor(raw8, *pColor, code);
   
   return 0;
 }
@@ -193,9 +197,9 @@ static inline int parseBayer12Frame(const TY_IMAGE_DATA* img, cv::Mat* pColor)
     LOGE("Invalid bayer12 fmt!");
     return -1;
   }
-  cv::Mat raw16(img->height, img->width, CV_16U);
-  parseCsiRaw12((uchar*)img->buffer, raw16, img->width, img->height);
-  cv::cvtColor(raw16, *pColor, code);
+  cv::Mat raw8(img->height, img->width, CV_8U);
+  parseCsiRaw12((uchar*)img->buffer, raw8, img->width, img->height);
+  cv::cvtColor(raw8, *pColor, code);
 
   return 0;
 }
@@ -249,9 +253,9 @@ static inline int parseColorFrame(const TY_IMAGE_DATA* img, cv::Mat* pColor, TY_
     cv::cvtColor(gray, *pColor, cv::COLOR_GRAY2BGR);
   }
   else if (img->pixelFormat == TY_PIXEL_FORMAT_CSI_MONO10){
-    cv::Mat gray16(img->height, img->width, CV_16U);
-    parseCsiRaw10((uchar*)img->buffer, gray16, img->width, img->height);
-    *pColor = gray16.clone();
+    cv::Mat gray8(img->height, img->width, CV_8U);
+    parseCsiRaw10((uchar*)img->buffer, gray8, img->width, img->height);
+    *pColor = gray8.clone();
   }
 
   return ret;
