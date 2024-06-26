@@ -289,7 +289,7 @@ void PercipioCameraNode::publishColorFrame(percipio_camera::VideoStream& stream)
     camera_info_publishers_[COLOR_STREAM]->publish(image_info);
 
     auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), sensor_msgs::image_encodings::TYPE_8UC3, color).toImageMsg();
-    image_msg->header.stamp = HWTimeUsToROSTime(stream.getDepthStramTimestamp());
+    image_msg->header.stamp = HWTimeUsToROSTime(stream.getColorStramTimestamp());
     image_msg->is_bigendian = false;
     image_msg->step = 3 * color.cols;
     image_msg->header.frame_id = optical_frame_id[COLOR_STREAM];
@@ -326,7 +326,7 @@ void PercipioCameraNode::publishLeftIRFrame(percipio_camera::VideoStream& stream
     camera_info_publishers_[LEFT_IR_STREAM]->publish(image_info);
 
     auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), sz_encoding_type, IR).toImageMsg();
-    image_msg->header.stamp = HWTimeUsToROSTime(stream.getDepthStramTimestamp());
+    image_msg->header.stamp = HWTimeUsToROSTime(stream.getLeftIRStramTimestamp());
     image_msg->is_bigendian = false;
     if(type == CV_8U)
         image_msg->step = IR.cols;
@@ -359,14 +359,14 @@ void PercipioCameraNode::publishRightIRFrame(percipio_camera::VideoStream& strea
     }
 
     auto image_info = stream.getRightIRInfo();
-    image_info.header.stamp = HWTimeUsToROSTime(stream.getLeftIRStramTimestamp());
+    image_info.header.stamp = HWTimeUsToROSTime(stream.getRightIRStramTimestamp());
     image_info.header.frame_id = optical_frame_id[RIGHT_IR_STREAM];
     image_info.width = IR.cols;
     image_info.height = IR.rows;
     camera_info_publishers_[RIGHT_IR_STREAM]->publish(image_info);
 
     auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), sz_encoding_type, IR).toImageMsg();
-    image_msg->header.stamp = HWTimeUsToROSTime(stream.getDepthStramTimestamp());
+    image_msg->header.stamp = HWTimeUsToROSTime(stream.getRightIRStramTimestamp());
     image_msg->is_bigendian = false;
     if(type == CV_8U)
         image_msg->step = IR.cols;
