@@ -74,15 +74,15 @@ static inline int decodeCsiRaw14(unsigned char* src, unsigned short* dst, int wi
 
 static inline int parseCsiRaw10(unsigned char* src, cv::Mat &dst, int width, int height)
 {
-    cv::Mat m(height, width, CV_8U);
-    decodeCsiRaw10(src, (uchar*)m.data, width, height);
+    dst = cv::Mat(height, width, CV_8U);
+    decodeCsiRaw10(src, (uchar*)dst.data, width, height);
     return 0;
 }
 
 static inline int parseCsiRaw12(unsigned char* src, cv::Mat &dst, int width, int height)
 {
-    cv::Mat m(height, width, CV_8U);
-    decodeCsiRaw12(src, (uchar*)m.data, width, height);
+    dst = cv::Mat(height, width, CV_8U);
+    decodeCsiRaw12(src, (uchar*)dst.data, width, height);
     return 0;
 }
 
@@ -91,15 +91,14 @@ static inline int parseIrFrame(const TY_IMAGE_DATA* img, cv::Mat* pIR)
   if (img->pixelFormat == TY_PIXEL_FORMAT_MONO16 || img->pixelFormat==TY_PIXEL_FORMAT_TOF_IR_MONO16){
     *pIR = cv::Mat(img->height, img->width, CV_16U, img->buffer).clone();
   } else if(img->pixelFormat == TY_PIXEL_FORMAT_CSI_MONO10) {
-    *pIR = cv::Mat(img->height, img->width, CV_8U);
     parseCsiRaw10((uchar*)img->buffer, (*pIR), img->width, img->height);
   } else if(img->pixelFormat == TY_PIXEL_FORMAT_MONO) {
     *pIR = cv::Mat(img->height, img->width, CV_8U, img->buffer).clone();
   } else if(img->pixelFormat == TY_PIXEL_FORMAT_CSI_MONO12) {
-    *pIR = cv::Mat(img->height, img->width, CV_8U, img->buffer).clone();
     parseCsiRaw12((uchar*)img->buffer, (*pIR), img->width, img->height);
   } 
   else {
+    LOGE("Invalid IR frame fmt!");
 	  return -1;
   }
 
@@ -169,7 +168,7 @@ static inline int parseBayer10Frame(const TY_IMAGE_DATA* img, cv::Mat* pColor)
     LOGE("Invalid bayer10 fmt!");
     return -1;
   }
-  cv::Mat raw8(img->height, img->width, CV_8U);
+  cv::Mat raw8;
   parseCsiRaw10((uchar*)img->buffer, raw8, img->width, img->height);
   cv::cvtColor(raw8, *pColor, code);
   
@@ -197,7 +196,7 @@ static inline int parseBayer12Frame(const TY_IMAGE_DATA* img, cv::Mat* pColor)
     LOGE("Invalid bayer12 fmt!");
     return -1;
   }
-  cv::Mat raw8(img->height, img->width, CV_8U);
+  cv::Mat raw8;
   parseCsiRaw12((uchar*)img->buffer, raw8, img->width, img->height);
   cv::cvtColor(raw8, *pColor, code);
 
@@ -253,9 +252,12 @@ static inline int parseColorFrame(const TY_IMAGE_DATA* img, cv::Mat* pColor, TY_
     cv::cvtColor(gray, *pColor, cv::COLOR_GRAY2BGR);
   }
   else if (img->pixelFormat == TY_PIXEL_FORMAT_CSI_MONO10){
-    cv::Mat gray8(img->height, img->width, CV_8U);
+    cv::Mat gray8;
     parseCsiRaw10((uchar*)img->buffer, gray8, img->width, img->height);
-    *pColor = gray8.clone();
+    cv::cvtColor(gray8, *pColor, cv::COLOR_GRAY2BGR);
+  }
+  else {
+    LOGE("Invalid RGB frame fmt!");
   }
 
   return ret;
