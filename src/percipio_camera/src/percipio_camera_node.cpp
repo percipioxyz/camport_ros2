@@ -186,19 +186,19 @@ void PercipioCameraNode::setupDevices() {
     if(!tof_depth_quality.empty())
         device_ptr->set_tof_depth_quality(tof_depth_quality);
 
-    if(m_tof_modulation_threshold)
+    if(m_tof_modulation_threshold >= 0)
         device_ptr->set_tof_modulation_threshold(m_tof_modulation_threshold);
 
-    if(m_tof_jitter_threshold)
+    if(m_tof_jitter_threshold >= 0)
         device_ptr->set_tof_jitter_threshold(m_tof_jitter_threshold);
 
-    if(m_tof_filter_threshold)
+    if(m_tof_filter_threshold >= 0)
         device_ptr->set_tof_filter_threshold(m_tof_filter_threshold);
 
-    if(m_tof_channel)
+    if(m_tof_channel >= 0)
         device_ptr->set_tof_channel(m_tof_channel);
 
-    if(m_tof_HDR_ratio)
+    if(m_tof_HDR_ratio >= 0)
         device_ptr->set_tof_HDR_ratio(m_tof_HDR_ratio);
 
     if (!stream_enable[COLOR_STREAM]) {

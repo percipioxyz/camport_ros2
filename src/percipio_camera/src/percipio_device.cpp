@@ -245,7 +245,7 @@ bool PercipioDevice::set_tof_depth_quality(const std::string& qua)
     if(!has) return false;
 
     uint32_t m_qua = depth_qua_desc_to_enum(qua);
-    status = TYSetInt(handle, TY_COMPONENT_DEPTH_CAM, TY_ENUM_DEPTH_QUALITY, m_qua);
+    status = TYSetEnum(handle, TY_COMPONENT_DEPTH_CAM, TY_ENUM_DEPTH_QUALITY, m_qua);
     if(status != TY_STATUS_OK) return false;
     return true;
 }
@@ -692,6 +692,11 @@ void PercipioDevice::frameDataRecive() {
         TY_FRAME_DATA frame;
         status = TYFetchFrame(handle, &frame, 2000);
         if(status == TY_STATUS_OK) {
+
+            int fps = get_fps();
+            if(fps > 0) {
+                RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "fps = " << fps);
+            }
             for (int i = 0; i < frame.validCount; i++){
                 if (frame.image[i].status != TY_STATUS_OK) continue;
 
