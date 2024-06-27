@@ -680,7 +680,7 @@ static void PercipioXYZ48ToDepth(cv::Mat& p3d, cv::Mat& depth)
     depth = cv::Mat(p3d.size(), CV_16U);
     for(int i = 0; i < p3d.rows; i++) {
         for(int j = 0; j < p3d.cols; j++) {
-            depth.at<unsigned short>(j, i) = static_cast<unsigned short>(p3d.at<cv::Vec3s>(i, j)[2]);
+            depth.at<unsigned short>(i, j) = static_cast<unsigned short>(p3d.at<cv::Vec3s>(i, j)[2]);
         }
     }
 }
