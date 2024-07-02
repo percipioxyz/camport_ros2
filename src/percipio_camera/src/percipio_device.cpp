@@ -708,8 +708,6 @@ void PercipioDevice::frameDataRecive() {
                 if (frame.image[i].status != TY_STATUS_OK) continue;
 
                 if (frame.image[i].componentID == TY_COMPONENT_DEPTH_CAM){
-                    RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "======frame::Depth");
-
                     cv::Mat depth;
                     if(frame.image[i].pixelFormat == TY_PIXEL_FORMAT_DEPTH16) {
                         depth = cv::Mat(frame.image[i].height, frame.image[i].width, CV_16U, frame.image[i].buffer);
@@ -724,24 +722,18 @@ void PercipioDevice::frameDataRecive() {
                 }
 
                 if (frame.image[i].componentID == TY_COMPONENT_RGB_CAM) {
-                    RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "======frame::Color");
-
                     cv::Mat color;
                     parseColorFrame(&frame.image[i], &color);
                     colorStreamRecive(color, frame.image[i].timestamp);
                 }
 
                 if (frame.image[i].componentID == TY_COMPONENT_IR_CAM_LEFT) {
-                    RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "======frame::Left-IR");
-
                     cv::Mat IR;
                     parseIrFrame(&frame.image[i], &IR);
                     leftIRStreamRecive(IR, frame.image[i].timestamp);
                 }
 
                 if (frame.image[i].componentID == TY_COMPONENT_IR_CAM_RIGHT) {
-                    RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "======frame::Right-IR");
-
                     cv::Mat IR;
                     parseIrFrame(&frame.image[i], &IR);
                     rightIRStreamRecive(IR, frame.image[i].timestamp);
