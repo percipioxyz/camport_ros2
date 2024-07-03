@@ -84,6 +84,8 @@ PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
                     RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "        " << format_desc << " " << m_width << "x" << m_height);
             }
         }
+
+        TYDisableComponents(handle, TY_COMPONENT_RGB_CAM);
     }
 
     if(allComps & TY_COMPONENT_DEPTH_CAM) {
@@ -101,6 +103,7 @@ PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
                     RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "        " << format_desc << " " << m_width << "x" << m_height);
             }
         }
+        TYDisableComponents(handle, TY_COMPONENT_DEPTH_CAM);
     }
 
     if(allComps & TY_COMPONENT_IR_CAM_LEFT) {
@@ -118,6 +121,7 @@ PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
                     RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "        " << format_desc << " " << m_width << "x" << m_height);
             }
         }
+        TYDisableComponents(handle, TY_COMPONENT_IR_CAM_LEFT);
     }
 
     if(allComps & TY_COMPONENT_IR_CAM_RIGHT) {
@@ -135,6 +139,7 @@ PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
                     RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "        " << format_desc << " " << m_width << "x" << m_height);
             }
         }
+        TYDisableComponents(handle, TY_COMPONENT_IR_CAM_RIGHT);
     }
     
     alive = true;
@@ -697,6 +702,8 @@ void PercipioDevice::frameDataRecive() {
             if(fps > 0) {
                 RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "fps = " << fps);
             }
+
+            
             for (int i = 0; i < frame.validCount; i++){
                 if (frame.image[i].status != TY_STATUS_OK) continue;
 
