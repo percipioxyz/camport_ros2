@@ -49,7 +49,7 @@ PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
           delete []blocks;
       } else {
         uint32_t crc_data = *(uint32_t*)blocks;
-        if(!crc_data) {
+        if(0 == crc_data || 0xffffffff == crc_data) {
             LOGE("The CRC check code is empty.");
             delete []blocks;
         } else {
