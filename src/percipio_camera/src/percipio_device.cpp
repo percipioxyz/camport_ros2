@@ -132,6 +132,14 @@ PercipioDevice::~PercipioDevice()
     hIface = nullptr;
 }
 
+static bool isValidJsonString(const char* code)
+{
+    std::string err;
+    const auto json = Json::parse(code, err);
+    if(json.is_null()) return false;
+    return true;
+}
+
 bool PercipioDevice::load_default_parameter()
 {
     TY_STATUS status = TY_STATUS_OK;
