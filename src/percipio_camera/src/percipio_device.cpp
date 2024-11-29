@@ -3,6 +3,7 @@
 #include "TYCoordinateMapper.h"
 #include "crc32.hpp"
 #include "ParametersParse.hpp"
+#include "huffman.h"
 
 namespace percipio_camera {
 
@@ -37,35 +38,7 @@ PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
         return;
     }
 
-    //try load default parameters
-    uint32_t block_size;
-    uint8_t* blocks = new uint8_t[MAX_STORAGE_SIZE] ();
-    status = TYGetByteArraySize(handle, TY_COMPONENT_STORAGE, TY_BYTEARRAY_CUSTOM_BLOCK, &block_size);
-    if(status != TY_STATUS_OK) {
-        delete []blocks;
-    } else {
-      status = TYGetByteArray(handle, TY_COMPONENT_STORAGE, TY_BYTEARRAY_CUSTOM_BLOCK, blocks,  block_size);
-      if(status != TY_STATUS_OK) {
-          delete []blocks;
-      } else {
-        uint32_t crc_data = *(uint32_t*)blocks;
-        if(0 == crc_data || 0xffffffff == crc_data) {
-            LOGE("The CRC check code is empty.");
-            delete []blocks;
-        } else {
-          uint8_t* js_string = blocks + sizeof(uint32_t);
-          uint32_t crc = crc32_bitwise(js_string, strlen((char*)js_string));
-          if(crc_data != crc) {
-              LOGE("The data in the storage area has a CRC check error.");
-              delete []blocks;
-          } else {
-            printf("Default json parameters :\n%s\n",  (const char* )js_string);
-            json_parse(handle, (const char* )js_string);
-            delete []blocks;
-          }
-        }
-      }
-    }
+    load_default_parameter();
 
     TYGetComponentIDs(handle, &allComps);
 
@@ -157,6 +130,86 @@ PercipioDevice::~PercipioDevice()
 
     TYCloseInterface(hIface);
     hIface = nullptr;
+}
+
+bool PercipioDevice::load_default_parameter()
+{
+    TY_STATUS status = TY_STATUS_OK;
+    uint32_t block_size;
+    uint8_t* blocks = new uint8_t[MAX_STORAGE_SIZE] ();
+    status = TYGetByteArraySize(handle, TY_COMPONENT_STORAGE, TY_BYTEARRAY_CUSTOM_BLOCK, &block_size);
+    if(status != TY_STATUS_OK) {
+        delete []blocks;
+        return false;
+    } 
+    
+    status = TYGetByteArray(handle, TY_COMPONENT_STORAGE, TY_BYTEARRAY_CUSTOM_BLOCK, blocks,  block_size);
+    if(status != TY_STATUS_OK) {
+        delete []blocks;
+        return false;
+    }
+    
+    uint32_t crc_data = *(uint32_t*)blocks;
+    if(0 == crc_data || 0xffffffff == crc_data) {
+        LOGE("The CRC check code is empty.");
+        delete []blocks;
+        return false;
+    } 
+    
+    uint32_t crc;
+    std::string js_string;
+    uint8_t* js_code = blocks + 4;
+    crc = crc32_bitwise(js_code, strlen((const char*)js_code));
+    if((crc != crc_data) || !isValidJsonString((const char*)js_code)) {
+        EncodingType type = *(EncodingType*)(blocks + 4);
+        switch(type) {
+            case HUFFMAN:
+            {
+                uint32_t huffman_size = *(uint32_t*)(blocks + 8);
+                uint8_t* huffman_ptr = (uint8_t*)(blocks + 12);
+                if(huffman_size > (MAX_STORAGE_SIZE - 8)) {
+                    LOGE("Storage data length error.");
+                    delete []blocks;
+                    return false;
+                }
+                
+                crc = crc32_bitwise(huffman_ptr, huffman_size);
+                LOGD("crc : 0x%x, 0x%x", crc, crc_data);
+                if(crc_data != crc) {
+                    LOGE("Storage area data check failed (check code error).");
+                    delete []blocks;
+                    return false;
+                }
+
+                std::string huffman_string(huffman_ptr, huffman_ptr + huffman_size);
+                if(!TextHuffmanDecompression(huffman_string, js_string)) {
+                    LOGE("Huffman decompression error.");
+                    delete []blocks;
+                    return false;
+                }
+                break;
+            }
+            default:
+            {
+                LOGE("Unsupported encoding format.");
+                delete []blocks;
+                return false;
+            }
+        }
+    } else {
+        js_string = std::string((const char*)js_code);
+    }
+
+    if(!isValidJsonString(js_string.c_str())) {
+        LOGE("Incorrect json data.");
+        delete []blocks;
+        return false;
+    }
+
+    json_parse(handle, js_string.c_str());
+
+    delete []blocks;
+    return true;
 }
 
 bool PercipioDevice::isAlive()

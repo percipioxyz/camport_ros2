@@ -20,6 +20,11 @@ enum percipio_stream_type {
     IR_RIGHT
 };
 
+enum EncodingType : uint32_t  
+{
+  HUFFMAN = 0,
+};
+
 struct percipio_distortion_map_info
 {
     public:
@@ -80,7 +85,8 @@ class PercipioDevice
         void topics_point_cloud_enable(bool enable);
         void topics_color_point_cloud_enable(bool enable);
         void topics_depth_registration_enable(bool enable);
-
+        
+        bool load_default_parameter();
     private:
         bool alive;
         TY_INTERFACE_HANDLE hIface;

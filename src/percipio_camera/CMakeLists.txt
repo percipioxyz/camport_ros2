@@ -63,6 +63,7 @@ set(SOURCE_FILES
   src/DepthInpainter.cpp
   src/ImageSpeckleFilter.cpp
   src/MatViewer.cpp
+  src/huffman.cpp
 )
 
 set(SOURCE_INCLUDES_DIR
