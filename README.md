@@ -5,7 +5,7 @@
     source ./install/setup.bash
 
 3.publish message:
-    ros2 launch percipio_camera percipioi_camera.launch.py
+    ros2 launch percipio_camera percipio_camera.launch.py
 
 4.list topics / services / parameters
     ros2 topic list
