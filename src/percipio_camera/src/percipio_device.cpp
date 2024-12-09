@@ -314,7 +314,6 @@ bool PercipioDevice::load_default_parameter()
                 }
                 
                 crc = crc32_bitwise(huffman_ptr, huffman_size);
-                LOGD("crc : 0x%x, 0x%x", crc, crc_data);
                 if(crc_data != crc) {
                     LOGE("Storage area data check failed (check code error).");
                     delete []blocks;
@@ -346,10 +345,14 @@ bool PercipioDevice::load_default_parameter()
         return false;
     }
 
-    json_parse(handle, js_string.c_str());
+    bool ret =json_parse(handle, js_string.c_str());
+    if(ret)  
+      LOGD("Loading default parameters successfully!");
+    else
+      LOGD("Failed to load default parameters, some parameters cannot be loaded properly!");
 
     delete []blocks;
-    return true;
+    return ret;
 }
 
 bool PercipioDevice::isAlive()
