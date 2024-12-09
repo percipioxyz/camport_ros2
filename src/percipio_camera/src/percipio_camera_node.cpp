@@ -59,6 +59,7 @@ PercipioCameraNode::PercipioCameraNode(rclcpp::Node* node, std::shared_ptr<Perci
     stream_name[COLOR_STREAM] = "color";
     stream_name[LEFT_IR_STREAM] = "left_ir";
     stream_name[RIGHT_IR_STREAM] = "right_ir";
+    device_ptr->register_node(this);
     setupTopics();
 }
 
@@ -113,6 +114,9 @@ void PercipioCameraNode::getParameters() {
         optical_frame_id[index] = camera_name_ + "_" + stream_name[index] + "_optical_frame";
     }
 
+    //device offline auto reconnection
+    setAndGetNodeParameter(m_offline_auto_reconnection, "device_auto_reconnect", false);
+
     //registration flag
     setAndGetNodeParameter(m_laser_power, "laser_power", -1);
 
@@ -163,6 +167,8 @@ void PercipioCameraNode::setupDevices() {
         RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Right-IR image data stream is not supported!");
         stream_enable[RIGHT_IR_STREAM] = false;
     }
+
+    device_ptr->enable_offline_reconnect(m_offline_auto_reconnection);
 
     if(m_laser_power >= 0)
         device_ptr->set_laser_power(m_laser_power);

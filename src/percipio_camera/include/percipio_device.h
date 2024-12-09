@@ -6,6 +6,8 @@
 #include <boost/function.hpp>
 #include <vector>
 #include <thread>
+#include <condition_variable>
+#include <mutex>
 
 #include "TYApi.h"
 #include "percipio_video_mode.h"
@@ -43,11 +45,25 @@ class PercipioDevice;
 typedef std::pair<percipio_stream_type, int> percipio_stream_index_pair;
 typedef boost::function<void(VideoStream&)> FrameCallbackFunction;
 typedef boost::function<void(PercipioDevice*, TY_EVENT_INFO*)> PercipioDeviceEventCallbackFunction;
+
+
+struct percipio_stream_property
+{
+    percipio_stream_index_pair idx;
+    std::string resolution;
+    std::string format;
+};
+
+class PercipioCameraNode;
 class PercipioDevice
 {
     public:
         PercipioDevice(const char* faceId, const char* deviceId);
         ~PercipioDevice();
+
+        TY_STATUS  Reconnect();
+        void Release();
+        void register_node(void* para) { _node = (PercipioCameraNode*)para; };
 
         bool isAlive();
         PercipioDeviceEventCallbackFunction _event_callback;
@@ -62,6 +78,8 @@ class PercipioDevice
         bool hasDepth();
         bool hasLeftIR();
         bool hasRightIR();
+
+        void enable_offline_reconnect(const bool en);
 
         bool set_laser_power(const int power);
         
@@ -87,7 +105,17 @@ class PercipioDevice
         void topics_depth_registration_enable(bool enable);
         
         bool load_default_parameter();
+
+        std::mutex offline_detect_mutex;
+        std::condition_variable offline_detect_cond;
     private:
+        PercipioCameraNode* _node;
+        bool b_dev_auto_reconnect = false;
+        bool reconnect = false;
+        std::string strFaceId;
+        std::string strDeviceId;
+        std::vector<percipio_stream_property> m_streams;
+
         bool alive;
         TY_INTERFACE_HANDLE hIface;
         TY_DEV_HANDLE handle;
@@ -106,6 +134,9 @@ class PercipioDevice
         bool topics_p3d_ = false;
         bool topics_color_p3d_ = false;
         bool topics_d_registration_ = false;
+
+        std::shared_ptr<std::thread> device_reconnect_thread = nullptr;
+        void device_offline_reconnect();
 
         float f_scale_unit = 1.f;
         TY_CAMERA_CALIB_INFO cam_depth_calib_data;
