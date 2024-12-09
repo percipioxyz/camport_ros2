@@ -13,7 +13,7 @@ def generate_launch_description():
         DeclareLaunchArgument('serial_number', default_value='""'),
         DeclareLaunchArgument('device_ip', default_value=''),
 
-        DeclareLaunchArgument('device_auto_reconnect', default_value='true'),
+        DeclareLaunchArgument('device_auto_reconnect', default_value='false'),
 
         # Enable rgb stream output
         DeclareLaunchArgument('color_enable', default_value='true'),
