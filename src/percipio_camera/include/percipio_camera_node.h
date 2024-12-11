@@ -26,6 +26,56 @@
 
 namespace percipio_camera {
 
+
+class PercipioCameraNode;
+class OfflineEventPublisher : public rclcpp::Node
+{
+public:
+  OfflineEventPublisher() : Node("string_publisher")
+  {
+    publisher_ = this->create_publisher<std_msgs::msg::String>("chatter", 10);
+    timer_ = this->create_wall_timer(std::chrono::milliseconds(100), bind(&OfflineEventPublisher::timer_callback, this));
+  }
+ 
+  void updateMsg(const char* msg) { message = msg; }
+private:
+  std::string message;
+  void timer_callback()
+  {
+    auto Msg = std_msgs::msg::String();
+    Msg.data = message;
+    RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", Msg.data.c_str());
+    publisher_->publish(Msg);
+    
+    //stop
+    timer_->cancel();
+  }
+ 
+  rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
+};
+
+class SoftTriggerEventSubscriber : public rclcpp::Node
+{
+public:
+    SoftTriggerEventSubscriber(PercipioCameraNode* node)
+    : Node("string_subscriber"), _PercipioCameraNode(node)
+    {
+        subscription_ = this->create_subscription<std_msgs::msg::String>(
+            "topic", rclcpp::SensorDataQoS(),
+            std::bind(&SoftTriggerEventSubscriber::topic_callback, this, std::placeholders::_1));
+    }
+ 
+private:
+    void topic_callback(const std_msgs::msg::String::SharedPtr msg) const
+    {
+        RCLCPP_INFO(this->get_logger(), "====I heard: '%s'", msg->data.c_str());
+    }
+ 
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_;
+    PercipioCameraNode* _PercipioCameraNode;
+};
+
 class PercipioCameraNode {
     public:
         PercipioCameraNode(rclcpp::Node* node, std::shared_ptr<PercipioDevice>& device);
@@ -42,9 +92,10 @@ class PercipioCameraNode {
         void getParameters();
         void setupDevices();
         void setupPublishers();
+        void setupSubscribers();
         void setupTopics();
 
-        void SendOfflineMsg();
+        void SendOfflineMsg(const char* sn);
         
     
     private:
@@ -71,7 +122,13 @@ class PercipioCameraNode {
         rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr color_point_cloud_pub_;
 
         rclcpp::Publisher<std_msgs::msg::String>::SharedPtr offline_event_publisher_;
-        
+
+        rclcpp::Subscription<std_msgs::msg::String>::SharedPtr trigger_event_subscriber_;
+        void topic_callback(const std_msgs::msg::String::SharedPtr msg) const;
+        //{
+        //    RCLCPP_INFO(this->get_logger(), "====I heard: '%s'", msg->data.c_str());
+        //}
+
         rclcpp::TimerBase::SharedPtr timer_ = nullptr;
         void broadcast_timer_callback();
 

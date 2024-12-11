@@ -20,6 +20,12 @@ enum percipio_stream_type {
     IR_RIGHT
 };
 
+enum percipio_dev_workmode {
+    CONTINUS = 0,
+    SOFTTRIGGER,
+    HARDTRIGGER,
+};
+
 enum EncodingType : uint32_t  
 {
   HUFFMAN = 0,
@@ -48,6 +54,8 @@ class PercipioDevice
     public:
         PercipioDevice(const char* faceId, const char* deviceId);
         ~PercipioDevice();
+
+        bool set_workmode(percipio_dev_workmode mode) { workmode = mode; }
 
         bool isAlive();
         PercipioDeviceEventCallbackFunction _event_callback;
@@ -78,6 +86,7 @@ class PercipioDevice
         bool stream_close(const percipio_stream_index_pair& idx);
         bool stream_start();
         bool stream_stop();
+        void send_softtrigger();
 
         void setFrameCallback(FrameCallbackFunction callback);
 
@@ -94,6 +103,8 @@ class PercipioDevice
 
         TY_DEVICE_BASE_INFO base_info;
         TY_COMPONENT_ID allComps;
+
+        percipio_dev_workmode workmode = CONTINUS;
 
         std::atomic_bool is_running_{false};
 

@@ -853,6 +853,11 @@ bool PercipioDevice::stream_stop()
     return true;
 }
 
+void PercipioDevice::send_softtrigger()
+{
+    
+}
+
 void PercipioDevice::setFrameCallback(FrameCallbackFunction callback)
 {
     _callback = callback;

@@ -226,8 +226,24 @@ void PercipioCameraNode::startStreams() {
     device_ptr->stream_start();
 }
 
+void PercipioCameraNode::topic_callback(const std_msgs::msg::String::SharedPtr msg) const
+{
+    RCLCPP_INFO(rclcpp::get_logger("percipio_camera"), "got Event: '%s'", msg->data.c_str());
+    if(msg->data.find("SoftTrigger") == 0) {
+        RCLCPP_INFO(rclcpp::get_logger("percipio_camera"), "Send soft trigger!");
+        device_ptr->send_softtrigger();
+    }
+}
+
+void PercipioCameraNode::setupSubscribers() {
+    trigger_event_subscriber_ = node_->create_subscription<std_msgs::msg::String>(
+            "event", rclcpp::SensorDataQoS(),
+            std::bind(&PercipioCameraNode::topic_callback, this, std::placeholders::_1));
+}
+
 void PercipioCameraNode::setupPublishers() {
     auto point_cloud_qos_profile = getRMWQosProfileFromString(point_cloud_qos);
+
     if (color_point_cloud_enable) {
         color_point_cloud_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>(
             "depth_registered/points",
@@ -260,20 +276,32 @@ void PercipioCameraNode::setupPublishers() {
             camera_info_qos_profile));
     }
 
-    offline_event_publisher_ = node_->create_publisher<std_msgs::msg::String>("device_offline", 10); 
+    offline_event_publisher_ = node_->create_publisher<std_msgs::msg::String>("event", rclcpp::QoS(1).transient_local());
 }
-
+/*
+void PercipioCameraNode::timer_callback()
+  {
+    auto Msg = std_msgs::msg::String();
+    Msg.data = message;
+    RCLCPP_INFO(rclcpp::get_logger("percipio_camera"), "Publishing: '%s'", Msg.data.c_str());
+    publisher_->publish(Msg);
+    
+    //stop
+    timer_->cancel();
+  }
+*/
 void PercipioCameraNode::setupTopics() {
   getParameters();
   setupDevices();
   setupPublishers();
+  setupSubscribers();
 }
 
 void PercipioCameraNode::SendOfflineMsg(const char* sn) {
-    auto msg = std_msgs::msg::String();                     
-    msg.data = " Device Offline<" + std::string(sn) + ">";
-    RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", msg.data.c_str()); 
-    offline_event_publisher_->publish(msg); 
+    auto msg = std_msgs::msg::String();
+    msg.data = " DeviceOffline<" + std::string(sn) + ">";
+    RCLCPP_INFO(rclcpp::get_logger("percipio_camera"), "Publishing: '%s'", msg.data.c_str());
+    offline_event_publisher_->publish(std::move(msg));
 }
 
 #define SUBSCRIVER_CHECK(has)  do {   \
