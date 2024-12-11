@@ -75,6 +75,7 @@ void PercipioCameraNodeDriver::onCameraEventCallback(PercipioDevice* Handle, TY_
 {
     if (event_info->eventId == TY_EVENT_DEVICE_OFFLINE) {
         RCLCPP_ERROR_STREAM(logger_,  "Device Event Callback: Device Offline, SN = " << Handle->serialNumber());
+        percipio_camera_node_->SendOfflineMsg(Handle->serialNumber().c_str());
     }
 }
 

@@ -16,6 +16,7 @@
 
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <std_msgs/msg/string.hpp>
 
 #include <image_publisher/image_publisher.hpp>
 #include <image_transport/publisher.hpp>
@@ -42,6 +43,8 @@ class PercipioCameraNode {
         void setupDevices();
         void setupPublishers();
         void setupTopics();
+
+        void SendOfflineMsg();
         
     
     private:
@@ -66,6 +69,8 @@ class PercipioCameraNode {
 
         rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_pub_;
         rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr color_point_cloud_pub_;
+
+        rclcpp::Publisher<std_msgs::msg::String>::SharedPtr offline_event_publisher_;
         
         rclcpp::TimerBase::SharedPtr timer_ = nullptr;
         void broadcast_timer_callback();

@@ -259,12 +259,21 @@ void PercipioCameraNode::setupPublishers() {
             topic, rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(camera_info_qos_profile),
             camera_info_qos_profile));
     }
+
+    offline_event_publisher_ = node_->create_publisher<std_msgs::msg::String>("device_offline", 10); 
 }
 
 void PercipioCameraNode::setupTopics() {
   getParameters();
   setupDevices();
   setupPublishers();
+}
+
+void PercipioCameraNode::SendOfflineMsg(const char* sn) {
+    auto msg = std_msgs::msg::String();                     
+    msg.data = " Device Offline<" + std::string(sn) + ">";
+    RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", msg.data.c_str()); 
+    offline_event_publisher_->publish(msg); 
 }
 
 #define SUBSCRIVER_CHECK(has)  do {   \
