@@ -14,9 +14,11 @@ def generate_launch_description():
         DeclareLaunchArgument('device_ip', default_value=''),
 
         # Setup device work mode
+        # If using trigger_stoft mode, you can refer to the example file "send_trigger.py" to send soft trigger signal
         DeclareLaunchArgument('device_workmode', default_value='trigger_off'),#trigger_off / trigger_soft / trigger_hard
 
-        #Enable device auto try reconnect while offline
+        # Enable device auto try reconnect while offline
+        # You can refer to the example file "offline_detect.py" to detect camera offline events, regardless of whether this switch is turned on or off.
         DeclareLaunchArgument('device_auto_reconnect', default_value='false'),
 
         # Enable rgb stream output
