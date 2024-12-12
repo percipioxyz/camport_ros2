@@ -1,3 +1,10 @@
+deb依赖项:
+    ros-$ROS_DISTRO-image-transport
+    ros-$ROS_DISTRO-image-publisher
+    ros-$ROS_DISTRO-camera-info-manager
+    ros-$ROS_DISTRO-diagnostic-updater
+    ros-$ROS_DISTRO-diagnostic-msgs
+
 1.build project:
     colcon build --event-handlers  console_direct+  --cmake-args  -DCMAKE_BUILD_TYPE=Release
 

@@ -234,9 +234,8 @@ void PercipioCameraNode::startStreams() {
 
 void PercipioCameraNode::topic_callback(const std_msgs::msg::String::SharedPtr msg) const
 {
-    RCLCPP_INFO(rclcpp::get_logger("percipio_camera"), "got Event: '%s'", msg->data.c_str());
+    RCLCPP_INFO(rclcpp::get_logger("percipio_camera"), "    got Event: '%s'", msg->data.c_str());
     if(msg->data.find("SoftTrigger") == 0) {
-        RCLCPP_INFO(rclcpp::get_logger("percipio_camera"), "Send soft trigger!");
         device_ptr->send_softtrigger();
     }
 }

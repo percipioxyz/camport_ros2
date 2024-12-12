@@ -1,11 +1,17 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
  
 class PublisherNode(Node):
     def __init__(self):
         super().__init__('publisher_node')
-        self.publisher_ = self.create_publisher(String, '/camera/event', 10)
+
+        qos_profile = QoSProfile(
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=10)
+        self.publisher_ = self.create_publisher(String, '/camera/event', qos_profile)
         self.timer = self.create_timer(2.0, self.timer_callback)
         self.counter = 0
  

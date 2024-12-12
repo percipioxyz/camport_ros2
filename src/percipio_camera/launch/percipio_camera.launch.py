@@ -13,6 +13,10 @@ def generate_launch_description():
         DeclareLaunchArgument('serial_number', default_value='""'),
         DeclareLaunchArgument('device_ip', default_value=''),
 
+        # Setup device work mode
+        DeclareLaunchArgument('device_workmode', default_value='trigger_off'),#trigger_off / trigger_soft / trigger_hard
+
+        #Enable device auto try reconnect while offline
         DeclareLaunchArgument('device_auto_reconnect', default_value='false'),
 
         # Enable rgb stream output

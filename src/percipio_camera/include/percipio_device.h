@@ -67,6 +67,12 @@ class PercipioDevice
         PercipioDevice(const char* faceId, const char* deviceId);
         ~PercipioDevice();
 
+        void set_workmode(percipio_dev_workmode mode) { workmode = mode; }
+
+        TY_STATUS Reconnect();
+        void Release();
+        void register_node(void* para) { _node = (PercipioCameraNode*)para; }
+
         bool isAlive();
         PercipioDeviceEventCallbackFunction _event_callback;
         void registerCameraEventCallback(PercipioDeviceEventCallbackFunction callback);
@@ -108,6 +114,10 @@ class PercipioDevice
         void topics_depth_registration_enable(bool enable);
         
         bool load_default_parameter();
+
+        std::mutex softtrigger_mutex;
+        bool m_softtrigger_ready = false;
+        std::condition_variable softtrigger_detect_cond;
 
         std::mutex offline_detect_mutex;
         std::condition_variable offline_detect_cond;

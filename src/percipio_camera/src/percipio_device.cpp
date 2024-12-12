@@ -232,8 +232,15 @@ void PercipioDevice::Release()
 {
     stream_stop();
     is_running_.store(false);
+
+    if(workmode == SOFTTRIGGER) {
+        std::unique_lock<std::mutex> lck( softtrigger_mutex);
+        softtrigger_detect_cond.notify_one();
+    }
+
     if (frame_recive_thread_ && frame_recive_thread_->joinable()) {
         frame_recive_thread_->join();
+        frame_recive_thread_ = nullptr;
     }
 
     TYCloseDevice(handle);
@@ -246,6 +253,12 @@ void PercipioDevice::Release()
 PercipioDevice::~PercipioDevice()
 {
     is_running_.store(false);
+
+    if(workmode == SOFTTRIGGER) {
+        std::unique_lock<std::mutex> lck( softtrigger_mutex);
+        softtrigger_detect_cond.notify_one();
+    }
+
     if (frame_recive_thread_ && frame_recive_thread_->joinable()) {
         frame_recive_thread_->join();
         frame_recive_thread_ = nullptr;
@@ -925,10 +938,28 @@ void PercipioDevice::device_offline_reconnect() {
 
 void PercipioDevice::frameDataRecive() {
     TY_STATUS status;
-
+    m_softtrigger_ready = false;
     while (rclcpp::ok() && is_running_) {
         TY_FRAME_DATA frame;
-        status = TYFetchFrame(handle, &frame, 2000);
+        if(workmode == CONTINUS || workmode == HARDTRIGGER) {
+            status = TYFetchFrame(handle, &frame, 2000);
+        } else if(workmode == SOFTTRIGGER) {
+            std::unique_lock<std::mutex> lck(softtrigger_mutex);
+            while((!m_softtrigger_ready) && is_running_) {
+                softtrigger_detect_cond.wait(lck);
+            }
+            if(!is_running_) {
+                RCLCPP_INFO(rclcpp::get_logger("percipio_device"), "Stream fecth exit..");
+                return;
+            }
+            m_softtrigger_ready = false;
+            RCLCPP_INFO(rclcpp::get_logger("percipio_device"), "Send soft trigger signal!");
+            while(TY_STATUS_BUSY == TYSendSoftTrigger(handle));
+            status = TYFetchFrame(handle, &frame, 5000);
+        } else {
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Invalid workmode error :" << workmode);
+            status = TYFetchFrame(handle, &frame, 2000);
+        }
         if(status == TY_STATUS_OK) {
 
             int fps = get_fps();
@@ -986,6 +1017,25 @@ void PercipioDevice::frameDataRecive() {
 bool PercipioDevice::stream_start()
 {
     TY_STATUS status;
+
+    TY_TRIGGER_PARAM_EX trigger;
+    if(workmode != CONTINUS) {
+        TYSetBool(handle, TY_COMPONENT_DEVICE, TY_BOOL_GVSP_RESEND, true);
+
+        trigger.mode = TY_TRIGGER_MODE_SLAVE;
+        status = TYSetStruct(handle, TY_COMPONENT_DEVICE, TY_STRUCT_TRIGGER_PARAM_EX, &trigger, sizeof(trigger));
+        if(status != TY_STATUS_OK) {
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Set device to trigger mode error :" << status);
+            return false;
+        } else {
+            RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "Enable device trigger mode.");
+        }
+    } else {
+        //Clear trigger mdoe status
+        trigger.mode = TY_TRIGGER_MODE_OFF;
+        TYSetStruct(handle, TY_COMPONENT_DEVICE, TY_STRUCT_TRIGGER_PARAM_EX, &trigger, sizeof(trigger));
+    }
+
     uint32_t frameSize;
     status = TYGetFrameBufferSize(handle, &frameSize);
     if(status != TY_STATUS_OK) {
@@ -1012,6 +1062,12 @@ bool PercipioDevice::stream_start()
 bool PercipioDevice::stream_stop()
 {
     is_running_.store(false);
+
+    if(workmode == SOFTTRIGGER) {
+        std::unique_lock<std::mutex> lck( softtrigger_mutex);
+        softtrigger_detect_cond.notify_one();
+    }
+
     if (frame_recive_thread_ && frame_recive_thread_->joinable()) {
         frame_recive_thread_->join();
         TYStopCapture(handle);
@@ -1024,7 +1080,14 @@ bool PercipioDevice::stream_stop()
 
 void PercipioDevice::send_softtrigger()
 {
-    
+    if(workmode != SOFTTRIGGER) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "The camera is not working in soft trigger mode, ignore trigger signal");
+        return;
+    }
+
+    std::unique_lock<std::mutex> lck( softtrigger_mutex);
+    m_softtrigger_ready = true;
+    softtrigger_detect_cond.notify_one();
 }
 
 void PercipioDevice::setFrameCallback(FrameCallbackFunction callback)
