@@ -32,6 +32,9 @@ PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
         return;
     }
 
+    //time sync to host
+    //TYSetEnum(handle, TY_COMPONENT_DEVICE, TY_ENUM_TIME_SYNC_TYPE, TY_TIME_SYNC_TYPE_HOST);
+
     strFaceId = faceId;
     strDeviceId = deviceId;
 
@@ -138,6 +141,9 @@ TY_STATUS  PercipioDevice::Reconnect()
         TYCloseInterface(hIface);
         return status;
     }
+
+    //time sync to host
+    //TYSetEnum(handle, TY_COMPONENT_DEVICE, TY_ENUM_TIME_SYNC_TYPE, TY_TIME_SYNC_TYPE_HOST);
 
     status = TYGetDeviceInfo(handle, &base_info);
     if(status != TY_STATUS_OK) {
@@ -1034,6 +1040,13 @@ bool PercipioDevice::stream_start()
         //Clear trigger mdoe status
         trigger.mode = TY_TRIGGER_MODE_OFF;
         TYSetStruct(handle, TY_COMPONENT_DEVICE, TY_STRUCT_TRIGGER_PARAM_EX, &trigger, sizeof(trigger));
+
+        //If you need the camera to output the specified frame rate, you can change the continuous mode to periodic self-triggering mode and set the frame rate
+        //trigger.mode = TY_TRIGGER_MODE_M_PER;
+        //trigger.fps = 5;
+        //status = (TYSetStruct(handle, TY_COMPONENT_DEVICE, TY_STRUCT_TRIGGER_PARAM_EX, &trigger, sizeof(trigger)));
+        //LOGD("=== Enable Resend Option");
+        //TYSetBool(handle, TY_COMPONENT_DEVICE, TY_BOOL_GVSP_RESEND, true);
     }
 
     uint32_t frameSize;
