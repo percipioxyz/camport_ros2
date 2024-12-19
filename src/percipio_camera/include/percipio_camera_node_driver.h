@@ -12,15 +12,15 @@ namespace percipio_camera {
 
 class PercipioCameraNodeDriver : public rclcpp::Node {
  public:
-  explicit PercipioCameraNodeDriver(const rclcpp::NodeOptions& node_options = rclcpp::NodeOptions());
-  PercipioCameraNodeDriver(const std::string& node_name, const std::string& ns,
+    PercipioCameraNodeDriver(const rclcpp::NodeOptions& node_options = rclcpp::NodeOptions());
+    PercipioCameraNodeDriver(const std::string& node_name, const std::string& ns,
                      const rclcpp::NodeOptions& node_options = rclcpp::NodeOptions());
-  ~PercipioCameraNodeDriver() override;
+    ~PercipioCameraNodeDriver() override;
 
  private:
-  void init();
-  std::unique_ptr<PercipioCameraNode> percipio_camera_node_ = nullptr;
-  std::shared_ptr<PercipioDevice> percipio_device = nullptr;
+    void init();
+    std::unique_ptr<PercipioCameraNode> percipio_camera_node_ = nullptr;
+    std::shared_ptr<PercipioDevice> percipio_device = nullptr;
 
  private:
     rclcpp::Logger logger_;

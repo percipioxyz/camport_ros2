@@ -13,6 +13,7 @@ namespace percipio_camera {
 
 #define MAX_STORAGE_SIZE    (10*1024*1024)
 
+//percipio camera 初始化，打开相机,配置参数,使能数据流
 PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
     : alive(false),
       hIface(nullptr),
@@ -21,30 +22,59 @@ PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
     TY_STATUS status;
     status = TYOpenInterface(faceId, &hIface);
     if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Open interface fail!");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Open interface fail : " << status);
         return;
     }
   
     status = TYOpenDevice(hIface, deviceId, &handle);
     if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Open device fail!");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Open device fail : " << status);
         TYCloseInterface(hIface);
         return;
     }
-
-    //time sync to host
-    //TYSetEnum(handle, TY_COMPONENT_DEVICE, TY_ENUM_TIME_SYNC_TYPE, TY_TIME_SYNC_TYPE_HOST);
 
     strFaceId = faceId;
     strDeviceId = deviceId;
 
     status = TYGetDeviceInfo(handle, &base_info);
     if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Invalid device handle!");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Invalid device handle  : " << status);
         TYCloseDevice(handle);
         TYCloseInterface(hIface);
         return;
     }
+
+#if 1
+    status = TYSetEnum(handle, TY_COMPONENT_DEVICE, TY_ENUM_TIME_SYNC_TYPE, TY_TIME_SYNC_TYPE_HOST);
+    if(status != TY_STATUS_OK) {
+        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Set time sync type(host) err : " << status);
+    }
+#else
+    uint8_t ip[4]= {192,168,1,100};
+    uint32_t IP = TYIPv4ToInt(ip);
+    status = TYSetInt(handle, TY_COMPONENT_DEVICE, TY_INT_NTP_SERVER_IP, IP)
+    if(status != TY_STATUS_OK) {
+        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Set ntp server ip err : " << status);
+    }
+
+    status = TYSetEnum(handle, TY_COMPONENT_DEVICE, TY_ENUM_TIME_SYNC_TYPE, TY_TIME_SYNC_TYPE_NTP);
+    if(status != TY_STATUS_OK) {
+        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Set time sync type(host) err : " << status);
+    }
+
+    int m_retry = 20;
+    while(m_retry-- ) {
+        bool b_ready = false;
+        status = TYGetBool(handle, TY_COMPONENT_DEVICE, TY_BOOL_TIME_SYNC_READY, &b_ready);
+        if(status == TY_STATUS_OK && b_ready) {
+            break;
+        }
+        MSLEEP(100);
+    }
+    if(!m_retry) {
+        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Wait NTP time sync ready signal err");
+    }
+#endif
 
     load_default_parameter();
 
@@ -122,10 +152,17 @@ PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
         }
         TYDisableComponents(handle, TY_COMPONENT_IR_CAM_RIGHT);
     }
+
+    device_ros_event.eventId = (TY_EVENT)TY_EVENT_DEVICE_CONNECT;
+
+    if(_event_callback)
+        _event_callback(this, &device_ros_event);
     
     alive = true;
 }
 
+//设备离校重连
+//此功能只有在开启设备自动重连 且相机发生事实离线问题时会被主动调用，
 TY_STATUS  PercipioDevice::Reconnect()
 {
     TY_STATUS status;
@@ -142,9 +179,6 @@ TY_STATUS  PercipioDevice::Reconnect()
         return status;
     }
 
-    //time sync to host
-    //TYSetEnum(handle, TY_COMPONENT_DEVICE, TY_ENUM_TIME_SYNC_TYPE, TY_TIME_SYNC_TYPE_HOST);
-
     status = TYGetDeviceInfo(handle, &base_info);
     if(status != TY_STATUS_OK) {
         RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Invalid device handle!");
@@ -152,6 +186,38 @@ TY_STATUS  PercipioDevice::Reconnect()
         TYCloseInterface(hIface);
         return status;
     }
+
+#if 1
+    status = TYSetEnum(handle, TY_COMPONENT_DEVICE, TY_ENUM_TIME_SYNC_TYPE, TY_TIME_SYNC_TYPE_HOST);
+    if(status != TY_STATUS_OK) {
+        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Set time sync type(host) err : " << status);
+    }
+#else
+    uint8_t ip[4]= {192,168,1,100};
+    uint32_t IP = TYIPv4ToInt(ip);
+    status = TYSetInt(handle, TY_COMPONENT_DEVICE, TY_INT_NTP_SERVER_IP, IP)
+    if(status != TY_STATUS_OK) {
+        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Set ntp server ip err : " << status);
+    }
+
+    status = TYSetEnum(handle, TY_COMPONENT_DEVICE, TY_ENUM_TIME_SYNC_TYPE, TY_TIME_SYNC_TYPE_NTP);
+    if(status != TY_STATUS_OK) {
+        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Set time sync type(host) err : " << status);
+    }
+
+    int m_retry = 20;
+    while(m_retry-- ) {
+        bool b_ready = false;
+        status = TYGetBool(handle, TY_COMPONENT_DEVICE, TY_BOOL_TIME_SYNC_READY, &b_ready);
+        if(status == TY_STATUS_OK && b_ready) {
+            break;
+        }
+        MSLEEP(100);
+    }
+    if(!m_retry) {
+        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Wait NTP time sync ready signal err");
+    }
+#endif
 
     load_default_parameter();
 
@@ -231,9 +297,16 @@ TY_STATUS  PercipioDevice::Reconnect()
     }
     
     alive = true;
+
+    device_ros_event.eventId = (TY_EVENT)TY_EVENT_DEVICE_CONNECT;
+
+    if(_event_callback)
+        _event_callback(this, &device_ros_event);
+
     return TY_STATUS_OK;
 }
 
+//相机释放，停止拍照取图，关闭相机
 void PercipioDevice::Release()
 {
     stream_stop();
@@ -256,6 +329,7 @@ void PercipioDevice::Release()
     hIface = nullptr;
 }
 
+//析构，释放资源
 PercipioDevice::~PercipioDevice()
 {
     is_running_.store(false);
@@ -379,9 +453,13 @@ bool PercipioDevice::isAlive()
     return alive;
 }
 
+//SDK 事件回调函数，相机离线等问题时 会被SDK调用
 static void eventCallback(TY_EVENT_INFO *event_info, void *userdata) {
     PercipioDevice* handle = (PercipioDevice*)userdata;
-    handle->_event_callback(handle, event_info);
+
+    handle->device_ros_event.eventId = event_info->eventId;
+    if(handle->_event_callback)
+        handle->_event_callback(handle, &handle->device_ros_event);
 
     if (event_info->eventId == TY_EVENT_DEVICE_OFFLINE) {
         std::unique_lock<std::mutex> lck( handle->offline_detect_mutex);
@@ -398,26 +476,31 @@ void PercipioDevice::registerCameraEventCallback(PercipioDeviceEventCallbackFunc
    }
 }
 
+//相机 serial number
 std::string PercipioDevice::serialNumber()
 {
     return std::string(base_info.id);
 }
 
+//相机model name
 std::string PercipioDevice::modelName()
 {
     return std::string(base_info.modelName);
 }
 
+//相机固件hash
 std::string PercipioDevice::buildHash()
 {
     return std::string(base_info.buildHash);
 }
 
+//相机config 版本
 std::string PercipioDevice::configVersion()
 {
     return std::string(base_info.configVersion);
 }
 
+//相机组件查询
 bool PercipioDevice::hasColor()
 {
     return (allComps & TY_COMPONENT_RGB_CAM) == 
@@ -442,6 +525,7 @@ bool PercipioDevice::hasRightIR()
             TY_COMPONENT_IR_CAM_RIGHT;
 }
 
+//创建相机离线重现监测函数
 void PercipioDevice::enable_offline_reconnect(const bool en) 
 { 
     b_dev_auto_reconnect = en; 
@@ -452,6 +536,7 @@ void PercipioDevice::enable_offline_reconnect(const bool en)
     device_reconnect_thread = std::make_shared<std::thread>([this]() { device_offline_reconnect(); });
 }
 
+//laser亮度
 bool PercipioDevice::set_laser_power(const int power)
 {
     TY_STATUS status;
@@ -546,6 +631,7 @@ bool PercipioDevice::set_tof_HDR_ratio(int ratio)
     return true;
 }
 
+//node 的 stream idx 和 camport sdk 的stream idx转换
 uint32_t PercipioDevice::StreamConvertComponent(const percipio_stream_index_pair& idx)
 {
     switch(idx.first) {
@@ -562,6 +648,7 @@ uint32_t PercipioDevice::StreamConvertComponent(const percipio_stream_index_pair
     }
 }
 
+//解析用户设置的stream 数据流
 bool PercipioDevice::resolveStreamResolution(const std::string& resolution_, int& width, int& height)
 {
   size_t pos = resolution_.find('x');
@@ -642,6 +729,8 @@ bool PercipioDevice::nominateStreamFormat(const uint32_t& fmt,  std::string& for
     return false;
 }
 
+
+///stream 畸变map 初始化
 void PercipioDevice::StreamDistortionMapInit(TY_COMPONENT_ID comp, percipio_distortion_map_info& map)
 {
     TY_STATUS status;
@@ -686,11 +775,24 @@ INIT_FAIL:
     return ;
 }
 
+//读取相机深度图的单位
 float PercipioDevice::getDepthValueScale()
 {
     return f_scale_unit;
 }
 
+//更新color roi aec信息
+bool PercipioDevice::update_color_aec_roi(int x, int y , int w, int h)
+{
+    ROI.x = x;
+    ROI.y = y;
+    ROI.w = w;
+    ROI.h = h;
+    enable_rgb_aec_roi = true;
+    return true;
+}
+
+//开启指定数据流
 bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const std::string& resolution, const std::string& format)
 {
     TY_STATUS status;
@@ -707,6 +809,7 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
 
     std::vector<TY_ENUM_ENTRY> image_mode_list(0);
     std::vector<uint32_t> image_mode_val_list(0);
+    std::vector<std::string> image_mode_str_list(0);
 
     uint32_t fmt;
     int img_width, img_height;
@@ -729,6 +832,7 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
             }
 
             image_mode_val_list.push_back(current_image_mode);
+            image_mode_str_list.push_back(image_mode.description);
         }
     }
 
@@ -737,6 +841,8 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
             status = TYSetEnum(handle, m_comp, TY_ENUM_IMAGE_MODE, image_mode_val_list[0]);
             if(status != TY_STATUS_OK) {
                 RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Stream mode init error :" << status);
+            } else {
+                RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "Set stream mode : " << image_mode_str_list[0]);
             }
         } else {
             RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Unsupported stream mode!");
@@ -782,6 +888,7 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
     return true;
 }
 
+//关闭指定数据流
 bool PercipioDevice::stream_close(const percipio_stream_index_pair& idx)
 {
     TY_STATUS status;
@@ -805,7 +912,7 @@ bool PercipioDevice::stream_close(const percipio_stream_index_pair& idx)
     return true;
 }
 
-
+//
 void PercipioDevice::colorStreamRecive(cv::Mat& color, uint64_t& timestamp)
 {
     cv::Mat mapX, mapY;
@@ -922,6 +1029,7 @@ static void PercipioXYZ48ToDepth(cv::Mat& p3d, cv::Mat& depth)
     }
 }
 
+//相机离线监测
 void PercipioDevice::device_offline_reconnect() {
     while(isAlive()) {
         //TODO
@@ -945,23 +1053,59 @@ void PercipioDevice::device_offline_reconnect() {
 void PercipioDevice::frameDataRecive() {
     TY_STATUS status;
     m_softtrigger_ready = false;
-    while (rclcpp::ok() && is_running_) {
+
+    switch(workmode) {
+        case CONTINUS:
+            RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "Device now work at continues mode.");
+            break;
+        case SOFTTRIGGER:
+            RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "Device now work at soft trigger mode.");
+            break;
+        case HARDTRIGGER:
+            RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "Device now work at hard trigger mode.");
+            break;
+        default:
+            RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "Device now work at invalid workmode.");
+            break;
+    }
+
+    if(enable_rgb_aec_roi) {
+        status = TYSetBool(handle, TY_COMPONENT_RGB_CAM, TY_BOOL_AUTO_EXPOSURE, true);
+        if(status != TY_STATUS_OK) {
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Enable color aec failed : " << status);
+        } else {
+            status = TYSetStruct(handle, TY_COMPONENT_RGB_CAM, TY_STRUCT_AEC_ROI, &ROI, sizeof(ROI));
+            if(status != TY_STATUS_OK) {
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Set color aec roi failed : " << status);
+            } else {
+                RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "Set color aec roi: " << ROI.x << ", " << ROI.y << ", " << ROI.w << ", " << ROI.h);
+            }
+        }
+    }
+
+    while (rclcpp::ok() && is_running_.load()) {
         TY_FRAME_DATA frame;
         if(workmode == CONTINUS || workmode == HARDTRIGGER) {
             status = TYFetchFrame(handle, &frame, 2000);
         } else if(workmode == SOFTTRIGGER) {
             std::unique_lock<std::mutex> lck(softtrigger_mutex);
-            while((!m_softtrigger_ready) && is_running_) {
+            while((!m_softtrigger_ready) && is_running_.load()) {
                 softtrigger_detect_cond.wait(lck);
             }
-            if(!is_running_) {
-                RCLCPP_INFO(rclcpp::get_logger("percipio_device"), "Stream fecth exit..");
+            if(!is_running_.load()) {
+                //RCLCPP_INFO(rclcpp::get_logger("percipio_device"), "Stream fecth exit, is_running_ = ." << is_running_);
+                RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "Stream fecth exit, is_running_ = " << is_running_);
                 return;
             }
             m_softtrigger_ready = false;
-            RCLCPP_INFO(rclcpp::get_logger("percipio_device"), "Send soft trigger signal!");
+            RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "Send soft trigger signal!");
             while(TY_STATUS_BUSY == TYSendSoftTrigger(handle));
             status = TYFetchFrame(handle, &frame, 5000);
+            if(status != TY_STATUS_OK) {
+                 device_ros_event.eventId = (TY_EVENT)TY_EVENT_DEVICE_TIMEOUT;
+                 if(_event_callback)
+                    _event_callback(this, &device_ros_event);
+            }
         } else {
             RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Invalid workmode error :" << workmode);
             status = TYFetchFrame(handle, &frame, 2000);
@@ -1020,6 +1164,7 @@ void PercipioDevice::frameDataRecive() {
     RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "frameDataRecive exit...");
 }
 
+//开启数据流
 bool PercipioDevice::stream_start()
 {
     TY_STATUS status;
@@ -1040,13 +1185,6 @@ bool PercipioDevice::stream_start()
         //Clear trigger mdoe status
         trigger.mode = TY_TRIGGER_MODE_OFF;
         TYSetStruct(handle, TY_COMPONENT_DEVICE, TY_STRUCT_TRIGGER_PARAM_EX, &trigger, sizeof(trigger));
-
-        //If you need the camera to output the specified frame rate, you can change the continuous mode to periodic self-triggering mode and set the frame rate
-        //trigger.mode = TY_TRIGGER_MODE_M_PER;
-        //trigger.fps = 5;
-        //status = (TYSetStruct(handle, TY_COMPONENT_DEVICE, TY_STRUCT_TRIGGER_PARAM_EX, &trigger, sizeof(trigger)));
-        //LOGD("=== Enable Resend Option");
-        //TYSetBool(handle, TY_COMPONENT_DEVICE, TY_BOOL_GVSP_RESEND, true);
     }
 
     uint32_t frameSize;
@@ -1060,6 +1198,8 @@ bool PercipioDevice::stream_start()
     
     TYEnqueueBuffer(handle, frameBuffer[0].data(), frameSize);
     TYEnqueueBuffer(handle, frameBuffer[1].data(), frameSize);
+
+    
 
     status = TYStartCapture(handle);
     if(status != TY_STATUS_OK) {

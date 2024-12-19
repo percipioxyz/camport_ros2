@@ -52,6 +52,7 @@ static rmw_qos_profile_t getRMWQosProfileFromString(const std::string &str_qos) 
   }
 }
 
+
 PercipioCameraNode::PercipioCameraNode(rclcpp::Node* node, std::shared_ptr<PercipioDevice>& device) 
         :node_(node),
     device_ptr(device) {
@@ -113,6 +114,20 @@ void PercipioCameraNode::getParameters() {
         frame_id[index] = camera_name_ + "_" + stream_name[index] + "_frame";
         optical_frame_id[index] = camera_name_ + "_" + stream_name[index] + "_optical_frame";
     }
+
+
+    std::string color_aec_roi_desc;
+    param_name_desc = "color_aec_roi";
+
+    setAndGetNodeParameter<std::string>(color_aec_roi_desc, param_name_desc, "");
+    if(color_aec_roi_desc.length()) {
+        int cnt = sscanf(color_aec_roi_desc.c_str(), "%d.%d.%d.%d", &roi[0], &roi[1], &roi[2], &roi[3]);
+        if(4 == cnt) {
+            b_enable_roi_aec = true;
+            RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "color roi aec enable!");
+        }
+    }
+
 
     //device offline auto reconnection
     setAndGetNodeParameter(m_offline_auto_reconnection, "device_auto_reconnect", false);
@@ -189,6 +204,10 @@ void PercipioCameraNode::setupDevices() {
         }
     }
 
+    if(stream_enable[COLOR_STREAM] && b_enable_roi_aec) {
+        device_ptr->update_color_aec_roi(roi[0], roi[1], roi[2], roi[3]);
+    }
+    
     if(!tof_depth_quality.empty())
         device_ptr->set_tof_depth_quality(tof_depth_quality);
 
@@ -242,11 +261,11 @@ void PercipioCameraNode::topic_callback(const std_msgs::msg::String::SharedPtr m
 
 void PercipioCameraNode::setupSubscribers() {
     trigger_event_subscriber_ = node_->create_subscription<std_msgs::msg::String>(
-            "event", rclcpp::SensorDataQoS(),
+            "trigger_event", rclcpp::SensorDataQoS(),
             std::bind(&PercipioCameraNode::topic_callback, this, std::placeholders::_1));
 }
 
-void PercipioCameraNode::setupPublishers() {
+void PercipioCameraNode::setupPublishers() {  
     auto point_cloud_qos_profile = getRMWQosProfileFromString(point_cloud_qos);
 
     if (color_point_cloud_enable) {
@@ -281,20 +300,9 @@ void PercipioCameraNode::setupPublishers() {
             camera_info_qos_profile));
     }
 
-    offline_event_publisher_ = node_->create_publisher<std_msgs::msg::String>("event", rclcpp::QoS(1).transient_local());
+    device_event_publisher_ = node_->create_publisher<std_msgs::msg::String>("device_event", rclcpp::QoS(1).transient_local());
 }
-/*
-void PercipioCameraNode::timer_callback()
-  {
-    auto Msg = std_msgs::msg::String();
-    Msg.data = message;
-    RCLCPP_INFO(rclcpp::get_logger("percipio_camera"), "Publishing: '%s'", Msg.data.c_str());
-    publisher_->publish(Msg);
-    
-    //stop
-    timer_->cancel();
-  }
-*/
+
 void PercipioCameraNode::setupTopics() {
   getParameters();
   setupDevices();
@@ -306,7 +314,21 @@ void PercipioCameraNode::SendOfflineMsg(const char* sn) {
     auto msg = std_msgs::msg::String();
     msg.data = " DeviceOffline<" + std::string(sn) + ">";
     RCLCPP_INFO(rclcpp::get_logger("percipio_camera"), "Publishing: '%s'", msg.data.c_str());
-    offline_event_publisher_->publish(std::move(msg));
+    device_event_publisher_->publish(std::move(msg));
+}
+
+void PercipioCameraNode::SendConnectMsg(const char* sn) {
+    auto msg = std_msgs::msg::String();
+    msg.data = " DeviceConnect<" + std::string(sn) + ">";
+    RCLCPP_INFO(rclcpp::get_logger("percipio_camera"), "Publishing: '%s'", msg.data.c_str());
+    device_event_publisher_->publish(std::move(msg));
+}
+
+void PercipioCameraNode::SendTimetMsg(const char* sn) {
+    auto msg = std_msgs::msg::String();
+    msg.data = " DeviceTimeout<" + std::string(sn) + ">";
+    RCLCPP_INFO(rclcpp::get_logger("percipio_camera"), "Publishing: '%s'", msg.data.c_str());
+    device_event_publisher_->publish(std::move(msg));
 }
 
 #define SUBSCRIVER_CHECK(has)  do {   \
@@ -564,7 +586,6 @@ void PercipioCameraNode::publishPointCloud(percipio_camera::VideoStream& stream)
     point_cloud_msg->header.frame_id = optical_frame_id[DEPTH_STREAM];
     point_cloud_pub_->publish(std::move(point_cloud_msg));
 }
-
 
 void PercipioCameraNode::publishStaticTF(const rclcpp::Time &t, const tf2::Vector3 &trans,
                                    const tf2::Quaternion &q, const std::string &from,

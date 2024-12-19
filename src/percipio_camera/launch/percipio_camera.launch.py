@@ -24,6 +24,12 @@ def generate_launch_description():
         # Enable rgb stream output
         DeclareLaunchArgument('color_enable', default_value='true'),
         DeclareLaunchArgument('color_resolution', default_value='"1280x960"'),
+        
+        # Used to set the area of interest for color camera auto exposure
+        # This setting requires that the camera itself supports this feature, otherwise the setting is invalid
+        DeclareLaunchArgument('color_aec_roi', default_value='254.755.227.173'),
+        #DeclareLaunchArgument('color_aec_roi', default_value='0.0.1280.960'),
+        
         DeclareLaunchArgument('color_qos', default_value='default'),
         DeclareLaunchArgument('color_camera_info_qos', default_value='default'),
 
@@ -45,7 +51,7 @@ def generate_launch_description():
         DeclareLaunchArgument('color_point_cloud_enable', default_value='true'),
         DeclareLaunchArgument('point_cloud_qos', default_value='default'),
 
-        DeclareLaunchArgument('left_ir_enable', default_value='true'),
+        DeclareLaunchArgument('left_ir_enable', default_value='false'),
         DeclareLaunchArgument('left_ir_qos', default_value='default'),
         DeclareLaunchArgument('left_ir_camera_info_qos', default_value='default'),
 

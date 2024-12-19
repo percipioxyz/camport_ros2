@@ -28,6 +28,11 @@ enum percipio_dev_workmode {
     HARDTRIGGER,
 };
 
+enum percipio_dev_ros_event {
+    TY_EVENT_DEVICE_CONNECT = 50000,
+    TY_EVENT_DEVICE_TIMEOUT = 50001,
+};
+
 enum EncodingType : uint32_t  
 {
   HUFFMAN = 0,
@@ -99,7 +104,8 @@ class PercipioDevice
         bool set_tof_HDR_ratio(const int ratio);
 
         float getDepthValueScale();
-
+        
+        bool update_color_aec_roi(int x, int y , int w, int h);
         bool stream_open(const percipio_stream_index_pair& idx, const std::string& resolution, const std::string& format);
         bool stream_close(const percipio_stream_index_pair& idx);
         bool stream_start();
@@ -121,6 +127,8 @@ class PercipioDevice
 
         std::mutex offline_detect_mutex;
         std::condition_variable offline_detect_cond;
+
+        TY_EVENT_INFO device_ros_event;
     private:
         PercipioCameraNode* _node;
         bool b_dev_auto_reconnect = false;
@@ -128,6 +136,9 @@ class PercipioDevice
         std::string strFaceId;
         std::string strDeviceId;
         std::vector<percipio_stream_property> m_streams;
+
+        TY_AEC_ROI_PARAM ROI;
+        bool enable_rgb_aec_roi = false;
 
         bool alive;
         TY_INTERFACE_HANDLE hIface;
