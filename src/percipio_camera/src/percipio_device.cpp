@@ -19,169 +19,48 @@ PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
       hIface(nullptr),
       handle(nullptr)
 {
-    TY_STATUS status;
-    status = TYOpenInterface(faceId, &hIface);
-    if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Open interface fail : " << status);
-        return;
+    TY_STATUS status = device_open(faceId, deviceId);
+    if(TY_STATUS_OK == status) {
+        strFaceId = faceId;
+        strDeviceId = deviceId;
     }
-  
-    status = TYOpenDevice(hIface, deviceId, &handle);
-    if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Open device fail : " << status);
-        TYCloseInterface(hIface);
-        return;
-    }
-
-    strFaceId = faceId;
-    strDeviceId = deviceId;
-
-    status = TYGetDeviceInfo(handle, &base_info);
-    if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Invalid device handle  : " << status);
-        TYCloseDevice(handle);
-        TYCloseInterface(hIface);
-        return;
-    }
-
-#if 1
-    status = TYSetEnum(handle, TY_COMPONENT_DEVICE, TY_ENUM_TIME_SYNC_TYPE, TY_TIME_SYNC_TYPE_HOST);
-    if(status != TY_STATUS_OK) {
-        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Set time sync type(host) err : " << status);
-    }
-#else
-    uint8_t ip[4]= {192,168,1,100};
-    uint32_t IP = TYIPv4ToInt(ip);
-    status = TYSetInt(handle, TY_COMPONENT_DEVICE, TY_INT_NTP_SERVER_IP, IP)
-    if(status != TY_STATUS_OK) {
-        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Set ntp server ip err : " << status);
-    }
-
-    status = TYSetEnum(handle, TY_COMPONENT_DEVICE, TY_ENUM_TIME_SYNC_TYPE, TY_TIME_SYNC_TYPE_NTP);
-    if(status != TY_STATUS_OK) {
-        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Set time sync type(host) err : " << status);
-    }
-
-    int m_retry = 20;
-    while(m_retry-- ) {
-        bool b_ready = false;
-        status = TYGetBool(handle, TY_COMPONENT_DEVICE, TY_BOOL_TIME_SYNC_READY, &b_ready);
-        if(status == TY_STATUS_OK && b_ready) {
-            break;
-        }
-        MSLEEP(100);
-    }
-    if(!m_retry) {
-        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Wait NTP time sync ready signal err");
-    }
-#endif
-
-    load_default_parameter();
-
-    TYGetComponentIDs(handle, &allComps);
-
-    if(allComps & TY_COMPONENT_RGB_CAM) {
-        std::vector<TY_ENUM_ENTRY> image_mode_list(0);
-        get_feature_enum_list(handle, TY_COMPONENT_RGB_CAM, TY_ENUM_IMAGE_MODE, image_mode_list);
-        if(image_mode_list.size()) {
-            RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "color stream:");
-            for(size_t i = 0; i < image_mode_list.size(); i++) {
-                std::string format_desc;
-                uint32_t mode = image_mode_list[i].value;
-                int m_width = TYImageWidth(mode);
-                int m_height = TYImageHeight(mode);
-                uint32_t m_fmt = TYPixelFormat(mode);
-                if(nominateStreamFormat(m_fmt, format_desc))
-                    RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "        " << format_desc << " " << m_width << "x" << m_height);
-            }
-        }
-
-        TYDisableComponents(handle, TY_COMPONENT_RGB_CAM);
-    }
-
-    if(allComps & TY_COMPONENT_DEPTH_CAM) {
-        std::vector<TY_ENUM_ENTRY> image_mode_list(0);
-        get_feature_enum_list(handle, TY_COMPONENT_DEPTH_CAM, TY_ENUM_IMAGE_MODE, image_mode_list);
-        if(image_mode_list.size()) {
-            RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "depth stream:");
-            for(size_t i = 0; i < image_mode_list.size(); i++) {
-                std::string format_desc;
-                uint32_t mode = image_mode_list[i].value;
-                int m_width = TYImageWidth(mode);
-                int m_height = TYImageHeight(mode);
-                uint32_t m_fmt = TYPixelFormat(mode);
-                if(nominateStreamFormat(m_fmt, format_desc))
-                    RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "        " << format_desc << " " << m_width << "x" << m_height);
-            }
-        }
-        TYDisableComponents(handle, TY_COMPONENT_DEPTH_CAM);
-    }
-
-    if(allComps & TY_COMPONENT_IR_CAM_LEFT) {
-        std::vector<TY_ENUM_ENTRY> image_mode_list(0);
-        get_feature_enum_list(handle, TY_COMPONENT_IR_CAM_LEFT, TY_ENUM_IMAGE_MODE, image_mode_list);
-        if(image_mode_list.size()) {
-            RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "left-IR stream:");
-            for(size_t i = 0; i < image_mode_list.size(); i++) {
-                std::string format_desc;
-                uint32_t mode = image_mode_list[i].value;
-                int m_width = TYImageWidth(mode);
-                int m_height = TYImageHeight(mode);
-                uint32_t m_fmt = TYPixelFormat(mode);
-                if(nominateStreamFormat(m_fmt,  format_desc))
-                    RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "        " << format_desc << " " << m_width << "x" << m_height);
-            }
-        }
-        TYDisableComponents(handle, TY_COMPONENT_IR_CAM_LEFT);
-    }
-
-    if(allComps & TY_COMPONENT_IR_CAM_RIGHT) {
-        std::vector<TY_ENUM_ENTRY> image_mode_list(0);
-        get_feature_enum_list(handle, TY_COMPONENT_IR_CAM_RIGHT, TY_ENUM_IMAGE_MODE, image_mode_list);
-        if(image_mode_list.size()) {
-            RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "right-IR stream:");
-            for(size_t i = 0; i < image_mode_list.size(); i++) {
-                std::string format_desc;
-                uint32_t mode = image_mode_list[i].value;
-                int m_width = TYImageWidth(mode);
-                int m_height = TYImageHeight(mode);
-                uint32_t m_fmt = TYPixelFormat(mode);
-                if(nominateStreamFormat(m_fmt, format_desc))
-                    RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "        " << format_desc << " " << m_width << "x" << m_height);
-            }
-        }
-        TYDisableComponents(handle, TY_COMPONENT_IR_CAM_RIGHT);
-    }
-
-    device_ros_event.eventId = (TY_EVENT)TY_EVENT_DEVICE_CONNECT;
-
-    if(_event_callback)
-        _event_callback(this, &device_ros_event);
-    
-    alive = true;
 }
 
 //设备离校重连
 //此功能只有在开启设备自动重连 且相机发生事实离线问题时会被主动调用，
 TY_STATUS  PercipioDevice::Reconnect()
 {
+    TY_STATUS status = device_open(strFaceId.c_str(), strDeviceId.c_str());
+    if(TY_STATUS_OK != status) 
+        return status;
+
+    device_ros_event.eventId = (TY_EVENT)TY_EVENT_DEVICE_CONNECT;
+
+    if(_event_callback)
+        _event_callback(this, &device_ros_event);
+
+    return TY_STATUS_OK;
+}
+
+TY_STATUS PercipioDevice::device_open(const char* faceId, const char* deviceId)
+{
     TY_STATUS status;
-    status = TYOpenInterface(strFaceId.c_str(), &hIface);
+    status = TYOpenInterface(faceId, &hIface);
     if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Open interface fail!");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Open interface fail : " << status);
         return status;
     }
   
-    status = TYOpenDevice(hIface, strDeviceId.c_str(), &handle);
+    status = TYOpenDevice(hIface, deviceId, &handle);
     if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Open device fail!");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Open device fail : " << status);
         TYCloseInterface(hIface);
         return status;
     }
 
     status = TYGetDeviceInfo(handle, &base_info);
     if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Invalid device handle!");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Invalid device handle  : " << status);
         TYCloseDevice(handle);
         TYCloseInterface(hIface);
         return status;
@@ -295,13 +174,13 @@ TY_STATUS  PercipioDevice::Reconnect()
         }
         TYDisableComponents(handle, TY_COMPONENT_IR_CAM_RIGHT);
     }
-    
-    alive = true;
 
     device_ros_event.eventId = (TY_EVENT)TY_EVENT_DEVICE_CONNECT;
 
     if(_event_callback)
         _event_callback(this, &device_ros_event);
+    
+    alive = true;
 
     return TY_STATUS_OK;
 }

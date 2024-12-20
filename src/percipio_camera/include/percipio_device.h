@@ -178,6 +178,8 @@ class PercipioDevice
         std::vector<unsigned char> frameBuffer[2];
         void frameDataRecive();
 
+        TY_STATUS device_open(const char* faceId, const char* deviceId);
+
         uint32_t StreamConvertComponent(const percipio_stream_index_pair& idx);
         bool resolveStreamResolution(const std::string& resolution_, int& width, int& height);
         bool resolveStreamFormat(const std::string& format, uint32_t& fmt);
