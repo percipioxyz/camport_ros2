@@ -17,6 +17,10 @@ def generate_launch_description():
         # If using trigger_stoft mode, you can refer to the example file "send_trigger.py" to send soft trigger signal
         DeclareLaunchArgument('device_workmode', default_value='trigger_off'),#trigger_off / trigger_soft / trigger_hard
 
+        # Enable the network packet retransmission function
+        # If device workmode is in trigger mode, this feature will be automatically forced on
+        DeclareLaunchArgument('gvsp_resend', default_value='false'),
+
         # Enable device auto try reconnect while offline
         # You can refer to the example file "offline_detect.py" to detect camera offline events, regardless of whether this switch is turned on or off.
         DeclareLaunchArgument('device_auto_reconnect', default_value='false'),

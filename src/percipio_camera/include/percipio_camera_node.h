@@ -89,6 +89,8 @@ class PercipioCameraNode {
         std::map<percipio_stream_index_pair, std::string>   camera_info_qos_;
         std::string point_cloud_qos;
 
+        bool m_gvsp_resend = false;
+
         bool m_offline_auto_reconnection = false;
 
         bool point_cloud_enable = true;

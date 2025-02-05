@@ -404,6 +404,12 @@ bool PercipioDevice::hasRightIR()
             TY_COMPONENT_IR_CAM_RIGHT;
 }
 
+//packet resend enable
+void PercipioDevice::enable_gvsp_resend(const bool en)
+{
+    b_packet_resend_en = en;
+}
+
 //创建相机离线重现监测函数
 void PercipioDevice::enable_offline_reconnect(const bool en) 
 { 
@@ -1061,6 +1067,8 @@ bool PercipioDevice::stream_start()
             RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "Enable device trigger mode.");
         }
     } else {
+        TYSetBool(handle, TY_COMPONENT_DEVICE, TY_BOOL_GVSP_RESEND, b_packet_resend_en);
+
         //Clear trigger mdoe status
         trigger.mode = TY_TRIGGER_MODE_OFF;
         TYSetStruct(handle, TY_COMPONENT_DEVICE, TY_STRUCT_TRIGGER_PARAM_EX, &trigger, sizeof(trigger));

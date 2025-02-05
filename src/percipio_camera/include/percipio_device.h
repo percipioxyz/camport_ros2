@@ -92,6 +92,8 @@ class PercipioDevice
         bool hasLeftIR();
         bool hasRightIR();
 
+        void enable_gvsp_resend(const bool en);
+
         void enable_offline_reconnect(const bool en);
 
         bool set_laser_power(const int power);
@@ -131,6 +133,8 @@ class PercipioDevice
         TY_EVENT_INFO device_ros_event;
     private:
         PercipioCameraNode* _node;
+
+        bool b_packet_resend_en = false;
         bool b_dev_auto_reconnect = false;
         bool reconnect = false;
         std::string strFaceId;

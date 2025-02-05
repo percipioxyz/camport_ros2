@@ -128,6 +128,8 @@ void PercipioCameraNode::getParameters() {
         }
     }
 
+    //gvsp resend
+    setAndGetNodeParameter(m_gvsp_resend, "gvsp_resend", false);
 
     //device offline auto reconnection
     setAndGetNodeParameter(m_offline_auto_reconnection, "device_auto_reconnect", false);
@@ -182,6 +184,8 @@ void PercipioCameraNode::setupDevices() {
         RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Right-IR image data stream is not supported!");
         stream_enable[RIGHT_IR_STREAM] = false;
     }
+
+    device_ptr->enable_gvsp_resend(m_gvsp_resend);
 
     device_ptr->enable_offline_reconnect(m_offline_auto_reconnection);
 
