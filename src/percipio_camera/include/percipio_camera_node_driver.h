@@ -6,6 +6,7 @@
 #include <semaphore.h>
 
 #include "TYApi.h"
+#include "TYImageProc.h"
 #include "percipio_camera_node.h"
 
 namespace percipio_camera {

@@ -21,6 +21,8 @@ PercipioCameraNodeDriver::PercipioCameraNodeDriver(const rclcpp::NodeOptions &no
   RCLCPP_INFO_STREAM(logger_, "Init lib");
   TYInitLib();
 
+  TYImageProcesAcceEnable(false);
+
   //camport sdk version
   TY_VERSION_INFO ver;
   TYLibVersion(&ver);
@@ -35,6 +37,8 @@ PercipioCameraNodeDriver::PercipioCameraNodeDriver(const std::string &node_name,
       logger_(this->get_logger()) {
   RCLCPP_INFO_STREAM(logger_, "Init lib");
   TYInitLib();
+
+  TYImageProcesAcceEnable(false);
 
   TY_VERSION_INFO ver;
   TYLibVersion(&ver);

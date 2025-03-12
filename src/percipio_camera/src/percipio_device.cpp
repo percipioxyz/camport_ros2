@@ -1,6 +1,7 @@
 #include "percipio_device.h"
 #include "common.hpp"
 #include "TYCoordinateMapper.h"
+#include "TYImageProc.h"
 #include "crc32.hpp"
 #include "ParametersParse.hpp"
 #include "huffman.h"
@@ -765,8 +766,25 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
             break;
     }
 
+#ifdef IMAGE_DoUnsitortion_With_OpenCV
     StreamDistortionMapInit(TY_COMPONENT_DEPTH_CAM, depth_map);
     StreamDistortionMapInit(TY_COMPONENT_RGB_CAM, color_map);
+#else
+    status = TYGetStruct(handle, TY_COMPONENT_DEPTH_CAM, TY_STRUCT_CAM_CALIB_DATA, &depth_calib_data, sizeof(depth_calib_data));
+    if(status != TY_STATUS_OK) {
+        has_depth_calib_data = false;
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Got depth stream calib dataerror :" << status);
+    } else {
+        has_depth_calib_data = true;
+    }
+    status = TYGetStruct(handle, TY_COMPONENT_RGB_CAM, TY_STRUCT_CAM_CALIB_DATA, &color_calib_data, sizeof(color_calib_data));
+    if(status != TY_STATUS_OK) {
+        has_color_calib_data = false;
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Got color stream calib dataerror :" << status);
+    } else {
+        has_color_calib_data = true;
+    }
+#endif
 
     if(!reconnect) m_streams.push_back({idx, resolution, format});
     VideoStreamPtr = std::make_shared<VideoStream>();
@@ -805,6 +823,7 @@ void PercipioDevice::colorStreamRecive(cv::Mat& color, uint64_t& timestamp)
 
     if(color.empty()) return;
     if(VideoStreamPtr) {
+#ifdef IMAGE_DoUnsitortion_With_OpenCV
         if(color_map.IsValid()) {
             mapX = cv::Mat(cv::Size(color_map.m_map_width, color_map.m_map_height), CV_32F, color_map.f_map_x.data());
             mapY = cv::Mat(cv::Size(color_map.m_map_width, color_map.m_map_height), CV_32F, color_map.f_map_y.data());
@@ -812,6 +831,36 @@ void PercipioDevice::colorStreamRecive(cv::Mat& color, uint64_t& timestamp)
         } else {
             targetRGB = color;
         }
+#else
+        if(has_color_calib_data) {
+            if(color.type() == CV_8UC3) {
+                targetRGB = color.clone();
+
+                TY_IMAGE_DATA src;
+                src.width = color.cols;
+                src.height = color.rows;
+                src.size = color.size().area() * 3;;
+                src.pixelFormat = TY_PIXEL_FORMAT_BGR;
+                src.buffer = color.data;
+
+                TY_IMAGE_DATA dst;
+                dst.width = color.cols;
+                dst.height = color.rows;
+                dst.size = color.size().area() * 3;;
+                dst.pixelFormat = TY_PIXEL_FORMAT_BGR;
+                dst.buffer = targetRGB.data;
+                TY_STATUS err = TYUndistortImage(&color_calib_data, &src, NULL, &dst);
+                if(err) {
+                    RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Color TYUndistortImage ret = :" << err);
+                }
+            } else {
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Invalid color stream fmt :" << color.type());
+                return;
+            }
+        } else {
+            targetRGB = color;
+        }
+#endif
         VideoStreamPtr->ColorInit(targetRGB, &cam_color_intrinsic[0], timestamp);
     }
 }
@@ -835,6 +884,7 @@ void PercipioDevice::depthStreamRecive(cv::Mat& depth, uint64_t& timestamp)
 
     if(depth.empty()) return;
     if(VideoStreamPtr) {
+#ifdef IMAGE_DoUnsitortion_With_OpenCV
         if(depth_map.IsValid()) {
             mapX = cv::Mat(cv::Size(depth_map.m_map_width, depth_map.m_map_height), CV_32F, depth_map.f_map_x.data());
             mapY = cv::Mat(cv::Size(depth_map.m_map_width, depth_map.m_map_height), CV_32F, depth_map.f_map_y.data());
@@ -842,7 +892,37 @@ void PercipioDevice::depthStreamRecive(cv::Mat& depth, uint64_t& timestamp)
         } else {
             targetDepth = depth;
         }
+#else
+        if(has_depth_calib_data) {
+            if(depth.type() == CV_16U) {
+                targetDepth = depth.clone();
 
+                TY_IMAGE_DATA src;
+                src.width = depth.cols;
+                src.height = depth.rows;
+                src.size = depth.size().area() * 2;
+                src.pixelFormat = TY_PIXEL_FORMAT_DEPTH16;
+                src.buffer = depth.data;
+
+                TY_IMAGE_DATA dst;
+                dst.width = depth.cols;
+                dst.height = depth.rows;
+                dst.size = depth.size().area() * 2;
+                dst.pixelFormat = TY_PIXEL_FORMAT_DEPTH16;
+                dst.buffer = targetDepth.data;
+                TY_STATUS err = TYUndistortImage(&depth_calib_data, &src, NULL, &dst);
+                if(err) {
+                    RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Depth TYUndistortImage ret = :" << err);
+                }
+            } else {
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Invalid depth stream fmt :" << depth.type());
+                return;
+            }
+
+        } else {
+            targetDepth = depth;
+        }
+#endif
         if(topics_d_registration_) {
             cv::Mat out = cv::Mat::zeros(targetDepth.size(), CV_16U);
             TYMapDepthImageToColorCoordinate(&cam_depth_calib_data,
@@ -866,6 +946,7 @@ void PercipioDevice::p3dStreamRecive(cv::Mat& depth, uint64_t& timestamp) {
         cv::Mat p3d = cv::Mat(depth.size(), CV_32FC3);
         if(depth.type() == CV_16U) {
             cv::Mat targetDepth;
+#ifdef IMAGE_DoUnsitortion_With_OpenCV            
             if(depth_map.IsValid()) {
                 cv::Mat mapX = cv::Mat(cv::Size(depth_map.m_map_width, depth_map.m_map_height), CV_32F, depth_map.f_map_x.data());
                 cv::Mat mapY = cv::Mat(cv::Size(depth_map.m_map_width, depth_map.m_map_height), CV_32F, depth_map.f_map_y.data());
@@ -873,7 +954,36 @@ void PercipioDevice::p3dStreamRecive(cv::Mat& depth, uint64_t& timestamp) {
             } else {
                 targetDepth = depth;
             }
-
+#else
+            if(has_depth_calib_data) {
+                if(depth.type() == CV_16U) {
+                    targetDepth = depth.clone();
+    
+                    TY_IMAGE_DATA src;
+                    src.width = depth.cols;
+                    src.height = depth.rows;
+                    src.size = depth.size().area() * 2;
+                    src.pixelFormat = TY_PIXEL_FORMAT_DEPTH16;
+                    src.buffer = depth.data;
+    
+                    TY_IMAGE_DATA dst;
+                    dst.width = depth.cols;
+                    dst.height = depth.rows;
+                    dst.size = depth.size().area() * 2;
+                    dst.pixelFormat = TY_PIXEL_FORMAT_DEPTH16;
+                    dst.buffer = targetDepth.data;
+                    TY_STATUS err = TYUndistortImage(&depth_calib_data, &src, NULL, &dst);
+                    if(err) {
+                        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Depth TYUndistortImage ret = :" << err);
+                    }
+                } else {
+                    RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Invalid depth stream fmt :" << depth.type());
+                    return;
+                }
+            } else {
+                targetDepth = depth;
+            }
+#endif
             if(topics_p3d_) {
                 TYMapDepthImageToPoint3d(&cam_depth_calib_data, targetDepth.cols, targetDepth.rows, (const uint16_t*)targetDepth.data, (TY_VECT_3F*)p3d.data, f_scale_unit);
                 VideoStreamPtr->PointCloudInit(p3d, &cam_depth_intrinsic[0], timestamp);
