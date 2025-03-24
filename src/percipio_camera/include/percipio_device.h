@@ -12,6 +12,9 @@
 #include "TYApi.h"
 #include "percipio_video_mode.h"
 
+
+#define IMAGE_DoUnsitortion_With_OpenCV     
+
 namespace percipio_camera {
 
 
@@ -157,9 +160,16 @@ class PercipioDevice
 
         FrameCallbackFunction  _callback;
 
+#ifdef IMAGE_DoUnsitortion_With_OpenCV
         percipio_distortion_map_info depth_map;
         percipio_distortion_map_info color_map;
-
+#else
+        bool  has_depth_calib_data = false;
+        bool  has_color_calib_data = false;
+        TY_CAMERA_CALIB_INFO depth_calib_data;
+        TY_CAMERA_CALIB_INFO color_calib_data;
+        
+#endif
         bool topics_depth_ = false;
         bool topics_p3d_ = false;
         bool topics_color_p3d_ = false;
