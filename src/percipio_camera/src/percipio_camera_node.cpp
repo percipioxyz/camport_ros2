@@ -26,7 +26,7 @@ const static std::vector<percipio_stream_index_pair> PERCIPIO_IMAGE_STREAMS = {D
 static rclcpp::Time HWTimeUsToROSTime(uint64_t us)
 {
     uint64_t sec = us / 1000000;
-    uint64_t nano_sec = us % 1000000;
+    uint64_t nano_sec = 1000* (us % 1000000);
     return rclcpp::Time(sec, nano_sec);
 }
 
