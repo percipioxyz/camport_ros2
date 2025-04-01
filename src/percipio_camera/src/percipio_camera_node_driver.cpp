@@ -16,18 +16,6 @@ namespace percipio_camera {
 PercipioCameraNodeDriver::PercipioCameraNodeDriver(const rclcpp::NodeOptions &node_options)
     : Node("percipio_camera_node", "/", node_options),
       logger_(this->get_logger()) {
-
-  //camport sdk init
-  RCLCPP_INFO_STREAM(logger_, "Init lib");
-  TYInitLib();
-
-  TYImageProcesAcceEnable(false);
-
-  //camport sdk version
-  TY_VERSION_INFO ver;
-  TYLibVersion(&ver);
-  RCLCPP_INFO_STREAM(logger_, "     - lib version: " << ver.major << "." << ver.minor << "." << ver.patch);
-
   init();
 }
 
@@ -35,14 +23,6 @@ PercipioCameraNodeDriver::PercipioCameraNodeDriver(const std::string &node_name,
                                        const rclcpp::NodeOptions &node_options)
     : Node(node_name, ns, node_options),
       logger_(this->get_logger()) {
-  RCLCPP_INFO_STREAM(logger_, "Init lib");
-  TYInitLib();
-
-  TYImageProcesAcceEnable(false);
-
-  TY_VERSION_INFO ver;
-  TYLibVersion(&ver);
-  RCLCPP_INFO_STREAM(logger_, "     - lib version: " << ver.major << "." << ver.minor << "." << ver.patch);
   init();
 }
 
@@ -51,6 +31,17 @@ PercipioCameraNodeDriver::~PercipioCameraNodeDriver() {
 }
 
 void PercipioCameraNodeDriver::init() {
+    //camport sdk init
+    RCLCPP_INFO_STREAM(logger_, "Init lib");
+    TYInitLib();
+
+    TYImageProcesAcceEnable(false);
+
+    //camport sdk version
+    TY_VERSION_INFO ver;
+    TYLibVersion(&ver);
+    RCLCPP_INFO_STREAM(logger_, "     - lib version: " << ver.major << "." << ver.minor << "." << ver.patch);
+
     device_serial_number_   = declare_parameter<std::string>("serial_number", "");
     device_ip_              = declare_parameter<std::string>("device_ip", "");
     device_workmode_        = declare_parameter<std::string>("device_workmode", "");
