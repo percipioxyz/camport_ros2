@@ -3,11 +3,11 @@
 namespace percipio_camera {
 void VideoStream::reset()
 {
-    _left_ir.empty();
-    _right_ir.empty();
-    _depth.empty();
-    _color.empty();
-    _p3d.empty();
+    _left_ir.release();
+    _right_ir.release();
+    _depth.release();
+    _color.release();
+    _p3d.release();
 }
 
 bool VideoStream::DepthInit(const cv::Mat& depth, const float* intr, const uint64_t& timestamp)
