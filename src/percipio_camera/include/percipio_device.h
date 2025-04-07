@@ -190,7 +190,7 @@ class PercipioDevice
         std::shared_ptr<std::thread> frame_recive_thread_ = nullptr;
         std::shared_ptr<VideoStream> VideoStreamPtr = nullptr;
         std::vector<unsigned char> frameBuffer[2];
-        void frameDataRecive();
+        void frameDataReceive();
 
         TY_STATUS device_open(const char* faceId, const char* deviceId);
 
@@ -201,11 +201,11 @@ class PercipioDevice
         bool nominateStreamFormat(const uint32_t& fmt,  std::string& format);
         void StreamDistortionMapInit(TY_COMPONENT_ID comp, percipio_distortion_map_info& map);
 
-        void colorStreamRecive(cv::Mat& color, uint64_t& timestamp);
-        void leftIRStreamRecive(cv::Mat& ir,   uint64_t& timestamp);
-        void rightIRStreamRecive(cv::Mat& ir,  uint64_t& timestamp);
-        void depthStreamRecive(cv::Mat& depth, uint64_t& timestamp);
-        void p3dStreamRecive(cv::Mat& depth,   uint64_t& timestamp);
+        void colorStreamReceive(cv::Mat& color, uint64_t& timestamp);
+        void leftIRStreamReceive(cv::Mat& ir,   uint64_t& timestamp);
+        void rightIRStreamReceive(cv::Mat& ir,  uint64_t& timestamp);
+        void depthStreamReceive(cv::Mat& depth, uint64_t& timestamp);
+        void p3dStreamReceive(cv::Mat& depth,   uint64_t& timestamp);
 
 };
 }

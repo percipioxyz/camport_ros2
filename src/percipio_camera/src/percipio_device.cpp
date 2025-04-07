@@ -816,7 +816,7 @@ bool PercipioDevice::stream_close(const percipio_stream_index_pair& idx)
 }
 
 //
-void PercipioDevice::colorStreamRecive(cv::Mat& color, uint64_t& timestamp)
+void PercipioDevice::colorStreamReceive(cv::Mat& color, uint64_t& timestamp)
 {
     cv::Mat mapX, mapY;
     cv::Mat targetRGB;
@@ -865,19 +865,19 @@ void PercipioDevice::colorStreamRecive(cv::Mat& color, uint64_t& timestamp)
     }
 }
 
-void PercipioDevice::leftIRStreamRecive(cv::Mat& ir, uint64_t& timestamp)
+void PercipioDevice::leftIRStreamReceive(cv::Mat& ir, uint64_t& timestamp)
 {
     if(ir.empty()) return;
     if(VideoStreamPtr) VideoStreamPtr->IRLeftInit(ir, &cam_leftir_intrinsic[0], timestamp);
 }
 
-void PercipioDevice::rightIRStreamRecive(cv::Mat& ir, uint64_t& timestamp)
+void PercipioDevice::rightIRStreamReceive(cv::Mat& ir, uint64_t& timestamp)
 {
     if(ir.empty()) return;
     if(VideoStreamPtr) VideoStreamPtr->IRRightInit(ir, &cam_rightir_intrinsic[0], timestamp);
 }
 
-void PercipioDevice::depthStreamRecive(cv::Mat& depth, uint64_t& timestamp)
+void PercipioDevice::depthStreamReceive(cv::Mat& depth, uint64_t& timestamp)
 {
     cv::Mat mapX, mapY;
     cv::Mat targetDepth;
@@ -938,7 +938,7 @@ void PercipioDevice::depthStreamRecive(cv::Mat& depth, uint64_t& timestamp)
     return;
 }
 
-void PercipioDevice::p3dStreamRecive(cv::Mat& depth, uint64_t& timestamp) {
+void PercipioDevice::p3dStreamReceive(cv::Mat& depth, uint64_t& timestamp) {
     if(depth.empty()) return;
     if(!topics_p3d_  && !topics_color_p3d_) return;
 
@@ -1045,13 +1045,13 @@ void PercipioDevice::device_offline_reconnect() {
     }
 }
 
-void PercipioDevice::frameDataRecive() {
+void PercipioDevice::frameDataReceive() {
     TY_STATUS status;
     m_softtrigger_ready = false;
 
     switch(workmode) {
         case CONTINUS:
-            RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "Device now work at continues mode.");
+            RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "Device now work at continuous mode.");
             break;
         case SOFTTRIGGER:
             RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_camera"), "Device now work at soft trigger mode.");
@@ -1120,32 +1120,32 @@ void PercipioDevice::frameDataRecive() {
                     cv::Mat depth;
                     if(frame.image[i].pixelFormat == TY_PIXEL_FORMAT_DEPTH16) {
                         depth = cv::Mat(frame.image[i].height, frame.image[i].width, CV_16U, frame.image[i].buffer);
-                        p3dStreamRecive(depth, frame.image[i].timestamp);
+                        p3dStreamReceive(depth, frame.image[i].timestamp);
                     } else if((uint32_t)frame.image[i].pixelFormat == TY_PIXEL_FORMAT_XYZ48) {
                         cv::Mat p3d = cv::Mat(frame.image[i].height, frame.image[i].width
                           , CV_16SC3, frame.image[i].buffer);
-                        p3dStreamRecive(p3d, frame.image[i].timestamp);
+                        p3dStreamReceive(p3d, frame.image[i].timestamp);
                         PercipioXYZ48ToDepth(p3d, depth);
                     }
-                    depthStreamRecive(depth, frame.image[i].timestamp);
+                    depthStreamReceive(depth, frame.image[i].timestamp);
                 }
 
                 if (frame.image[i].componentID == TY_COMPONENT_RGB_CAM) {
                     cv::Mat color;
                     parseColorFrame(&frame.image[i], &color);
-                    colorStreamRecive(color, frame.image[i].timestamp);
+                    colorStreamReceive(color, frame.image[i].timestamp);
                 }
 
                 if (frame.image[i].componentID == TY_COMPONENT_IR_CAM_LEFT) {
                     cv::Mat IR;
                     parseIrFrame(&frame.image[i], &IR);
-                    leftIRStreamRecive(IR, frame.image[i].timestamp);
+                    leftIRStreamReceive(IR, frame.image[i].timestamp);
                 }
 
                 if (frame.image[i].componentID == TY_COMPONENT_IR_CAM_RIGHT) {
                     cv::Mat IR;
                     parseIrFrame(&frame.image[i], &IR);
-                    rightIRStreamRecive(IR, frame.image[i].timestamp);
+                    rightIRStreamReceive(IR, frame.image[i].timestamp);
                 }
             }
 
@@ -1156,7 +1156,7 @@ void PercipioDevice::frameDataRecive() {
         }
     }
 
-    RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "frameDataRecive exit...");
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "frameDataReceive exit...");
 }
 
 //开启数据流
@@ -1204,7 +1204,7 @@ bool PercipioDevice::stream_start()
       return false;
     }
     is_running_.store(true);
-    frame_recive_thread_ = std::make_shared<std::thread>([this]() { frameDataRecive(); });
+    frame_recive_thread_ = std::make_shared<std::thread>([this]() { frameDataReceive(); });
 
     return true;
 }
