@@ -9,14 +9,12 @@
 #include <condition_variable>
 #include <mutex>
 
-#include "TYApi.h"
+#include "TYParameter.h"
 #include "percipio_video_mode.h"
 
-
-#define IMAGE_DoUnsitortion_With_OpenCV     
+//#define IMAGE_DoUnsitortion_With_OpenCV     
 
 namespace percipio_camera {
-
 
 enum percipio_stream_type {
     DEPTH,
@@ -39,6 +37,12 @@ enum percipio_dev_ros_event {
 enum EncodingType : uint32_t  
 {
   HUFFMAN = 0,
+};
+
+enum GigEVersion
+{
+    GigeE_2_0,
+    GigeE_2_1,    
 };
 
 struct percipio_distortion_map_info
@@ -136,6 +140,8 @@ class PercipioDevice
         TY_EVENT_INFO device_ros_event;
     private:
         PercipioCameraNode* _node;
+
+        GigEVersion  gige_version = GigeE_2_0;
 
         bool b_packet_resend_en = false;
         bool b_dev_auto_reconnect = false;

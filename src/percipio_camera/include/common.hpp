@@ -206,24 +206,20 @@ static inline int parseBayer12Frame(const TY_IMAGE_DATA* img, cv::Mat* pColor)
 static inline int parseColorFrame(const TY_IMAGE_DATA* img, cv::Mat* pColor, TY_ISP_HANDLE color_isp_handle = NULL)
 {
   int ret = 0;
-  if (img->pixelFormat == TY_PIXEL_FORMAT_JPEG){
+  if (img->pixelFormat == TYPixelFormatJPEG){
     std::vector<uchar> _v((uchar*)img->buffer, (uchar*)img->buffer + img->size);
     *pColor = cv::imdecode(_v, cv::IMREAD_COLOR);
     ASSERT(img->width == pColor->cols && img->height == pColor->rows);
   }
-  else if (img->pixelFormat == TY_PIXEL_FORMAT_YVYU){
-    cv::Mat yuv(img->height, img->width, CV_8UC2, img->buffer);
-    cv::cvtColor(yuv, *pColor, cv::COLOR_YUV2BGR_YVYU);
-  }
-  else if (img->pixelFormat == TY_PIXEL_FORMAT_YUYV){
+  else if (img->pixelFormat == TYPixelFormatYUV422_8){
     cv::Mat yuv(img->height, img->width, CV_8UC2, img->buffer);
     cv::cvtColor(yuv, *pColor, cv::COLOR_YUV2BGR_YUYV);
   }
-  else if (img->pixelFormat == TY_PIXEL_FORMAT_RGB){
+  else if (img->pixelFormat == TYPixelFormatRGB8){
     cv::Mat rgb(img->height, img->width, CV_8UC3, img->buffer);
     cv::cvtColor(rgb, *pColor, cv::COLOR_RGB2BGR);
   }
-  else if (img->pixelFormat == TY_PIXEL_FORMAT_BGR){
+  else if (img->pixelFormat == TYPixelFormatBGR8){
     *pColor = cv::Mat(img->height, img->width, CV_8UC3, img->buffer);
   }
   else if (img->pixelFormat == TY_PIXEL_FORMAT_BAYER8GBRG || 
