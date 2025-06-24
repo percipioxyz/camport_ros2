@@ -9,4 +9,4 @@ struct DepthSpkFilterPara {
 };
 
 int TYDepthSpeckleFilter(TY_IMAGE_DATA& depth , const DepthSpkFilterPara& param);
-int TYDepthEnhenceFilter(const std::vector<TY_IMAGE_DATA> depth_images, TY_IMAGE_DATA& output);
+int TYDepthEnhenceFilter(const std::vector<TY_IMAGE_DATA>& depth_images, TY_IMAGE_DATA& output);

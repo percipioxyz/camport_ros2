@@ -174,7 +174,7 @@ static void average_merge(const std::vector<TY_IMAGE_DATA> depth_images, TY_IMAG
     }
 }
 
-int TYDepthSpeckleFilter (TY_IMAGE_DATA& depth , const DepthSpkFilterPara& param)
+int TYDepthSpeckleFilter (TY_IMAGE_DATA& depth, const DepthSpkFilterPara& param)
 {
     if(!depth.buffer){
       return TY_STATUS_NULL_POINTER;
@@ -190,7 +190,7 @@ int TYDepthSpeckleFilter (TY_IMAGE_DATA& depth , const DepthSpkFilterPara& param
     return TY_STATUS_OK;
 }
 
-int TYDepthEnhenceFilter(const std::vector<TY_IMAGE_DATA> depth_images, TY_IMAGE_DATA& output)
+int TYDepthEnhenceFilter(const std::vector<TY_IMAGE_DATA>& depth_images, TY_IMAGE_DATA& output)
 {
 #define MAX_IMAGE_NUMBER        (10)
     size_t image_num = depth_images.size();
