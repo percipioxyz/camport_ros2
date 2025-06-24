@@ -61,6 +61,7 @@ set(SOURCE_FILES
   src/percipio_video_mode.cpp
   src/TYThread.cpp
   src/DepthInpainter.cpp
+  src/DepthStreamProc.cpp
   src/ImageSpeckleFilter.cpp
   src/MatViewer.cpp
   src/huffman.cpp

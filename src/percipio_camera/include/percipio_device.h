@@ -10,6 +10,7 @@
 #include <mutex>
 
 #include "TYParameter.h"
+#include "DepthStreamProc.h"
 #include "percipio_video_mode.h"
 
 //#define IMAGE_DoUnsitortion_With_OpenCV     
@@ -131,8 +132,8 @@ class PercipioDevice
         bool load_default_parameter();
 
         std::mutex softtrigger_mutex;
-        bool m_softtrigger_ready = false;
-        std::condition_variable softtrigger_detect_cond;
+        //bool m_softtrigger_ready = false;
+        //std::condition_variable softtrigger_detect_cond;
 
         std::mutex offline_detect_mutex;
         std::condition_variable offline_detect_cond;

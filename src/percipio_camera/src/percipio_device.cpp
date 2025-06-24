@@ -177,17 +177,6 @@ TY_STATUS PercipioDevice::device_open(const char* faceId, const char* deviceId)
 void PercipioDevice::Release()
 {
     stream_stop();
-    is_running_.store(false);
-
-    if(workmode == SOFTTRIGGER) {
-        std::unique_lock<std::mutex> lck( softtrigger_mutex);
-        softtrigger_detect_cond.notify_one();
-    }
-
-    if (frame_recive_thread_ && frame_recive_thread_->joinable()) {
-        frame_recive_thread_->join();
-        frame_recive_thread_ = nullptr;
-    }
 
     TYCloseDevice(handle);
     handle = nullptr;
@@ -201,10 +190,9 @@ PercipioDevice::~PercipioDevice()
 {
     is_running_.store(false);
 
-    if(workmode == SOFTTRIGGER) {
-        std::unique_lock<std::mutex> lck( softtrigger_mutex);
-        softtrigger_detect_cond.notify_one();
-    }
+    //if(workmode == SOFTTRIGGER) {
+    //    softtrigger_detect_cond.notify_one();
+    //}
 
     if (frame_recive_thread_ && frame_recive_thread_->joinable()) {
         frame_recive_thread_->join();
@@ -329,10 +317,8 @@ static void eventCallback(TY_EVENT_INFO *event_info, void *userdata) {
         handle->_event_callback(handle, &handle->device_ros_event);
 
     if (event_info->eventId == TY_EVENT_DEVICE_OFFLINE) {
-        std::unique_lock<std::mutex> lck( handle->offline_detect_mutex);
         handle->offline_detect_cond.notify_one();
     }
-
 }
 
 void PercipioDevice::registerCameraEventCallback(PercipioDeviceEventCallbackFunction callback)
@@ -1179,7 +1165,7 @@ void PercipioDevice::device_offline_reconnect() {
 
 void PercipioDevice::frameDataReceive() {
     TY_STATUS status;
-    m_softtrigger_ready = false;
+    //m_softtrigger_ready = false;
 
     switch(workmode) {
         case CONTINUS:
@@ -1209,45 +1195,24 @@ void PercipioDevice::frameDataReceive() {
             }
         }
     }
-
+    
     while (rclcpp::ok() && is_running_.load()) {
         TY_FRAME_DATA frame;
         if(workmode == CONTINUS || workmode == HARDTRIGGER) {
             status = TYFetchFrame(handle, &frame, 2000);
         } else if(workmode == SOFTTRIGGER) {
-            std::unique_lock<std::mutex> lck(softtrigger_mutex);
-            while((!m_softtrigger_ready) && is_running_.load()) {
-                softtrigger_detect_cond.wait(lck);
-            }
-            if(!is_running_.load()) {
-                RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "Stream fecth exit, is_running_ = " << is_running_);
-                return;
-            }
-            m_softtrigger_ready = false;
-            RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "Send soft trigger signal!");
-            if(GigeE_2_0 == gige_version) {
-                while(TY_STATUS_BUSY == TYSendSoftTrigger(handle));
-            } else {
-                TYCommandExec(handle, "TriggerSoftware");
-            }
-            status = TYFetchFrame(handle, &frame, 5000);
-            if(status != TY_STATUS_OK) {
-                 device_ros_event.eventId = (TY_EVENT)TY_EVENT_DEVICE_TIMEOUT;
-                 if(_event_callback)
-                    _event_callback(this, &device_ros_event);
-            }
+            status = TYFetchFrame(handle, &frame, 200);
         } else {
             RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Invalid workmode error :" << workmode);
             status = TYFetchFrame(handle, &frame, 2000);
         }
-        if(status == TY_STATUS_OK) {
 
+        if(status == TY_STATUS_OK) {
             int fps = get_fps();
             if(fps > 0) {
                 RCLCPP_INFO_STREAM(rclcpp::get_logger("percipio_device"), "fps = " << fps);
             }
 
-            
             for (int i = 0; i < frame.validCount; i++){
                 if (frame.image[i].status != TY_STATUS_OK) continue;
 
@@ -1298,7 +1263,7 @@ void PercipioDevice::frameDataReceive() {
 bool PercipioDevice::stream_start()
 {
     TY_STATUS status;
-
+    TY_ACCESS_MODE access;
     switch(gige_version) {
         case GigeE_2_1:
         {
@@ -1309,10 +1274,13 @@ bool PercipioDevice::stream_start()
                     RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Set AcquisitionMode error :" << status);
                     return false;
                 }
-                status = TYBooleanSetValue(handle, "AcquisitionFrameRateEnable", false);
-                if(status != TY_STATUS_OK) {
-                    RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Set AcquisitionFrameRateEnable error :" << status);
-                    return false;
+                status = TYParamGetAccess(handle, "AcquisitionFrameRateEnable", &access);
+                if((status == TY_STATUS_OK) && (access & TY_ACCESS_WRITABLE)) {
+                    status = TYBooleanSetValue(handle, "AcquisitionFrameRateEnable", false);
+                    if(status != TY_STATUS_OK) {
+                        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Set AcquisitionFrameRateEnable error :" << status);
+                        return false;
+                    }
                 }
             } else if(workmode == SOFTTRIGGER) {
                 //SOFTTRIGGER
@@ -1380,8 +1348,6 @@ bool PercipioDevice::stream_start()
     TYEnqueueBuffer(handle, frameBuffer[0].data(), frameSize);
     TYEnqueueBuffer(handle, frameBuffer[1].data(), frameSize);
 
-    
-
     status = TYStartCapture(handle);
     if(status != TY_STATUS_OK) {
       RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_device"), "Start capture error :" << status);
@@ -1395,20 +1361,26 @@ bool PercipioDevice::stream_start()
 
 bool PercipioDevice::stream_stop()
 {
-    is_running_.store(false);
-
-    if(workmode == SOFTTRIGGER) {
-        std::unique_lock<std::mutex> lck( softtrigger_mutex);
-        softtrigger_detect_cond.notify_one();
+    if(!is_running_.load()) {
+        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "The camera's not on yet!");
+        return false;
     }
+
+    is_running_.store(false);
+    //if(workmode == SOFTTRIGGER) {
+    //    softtrigger_detect_cond.notify_one();
+    //}
 
     if (frame_recive_thread_ && frame_recive_thread_->joinable()) {
         frame_recive_thread_->join();
-        TYStopCapture(handle);
-        TYClearBufferQueue(handle);
-        frameBuffer[0].clear();
-        frameBuffer[1].clear();
+        frame_recive_thread_ = nullptr;
     }
+
+    TYStopCapture(handle);
+    TYClearBufferQueue(handle);
+    frameBuffer[0].clear();
+    frameBuffer[1].clear();
+
     return true;
 }
 
@@ -1419,9 +1391,10 @@ void PercipioDevice::send_softtrigger()
         return;
     }
 
-    std::unique_lock<std::mutex> lck( softtrigger_mutex);
-    m_softtrigger_ready = true;
-    softtrigger_detect_cond.notify_one();
+    //std::unique_lock<std::mutex> lck( softtrigger_mutex);
+    //m_softtrigger_ready = true;
+    //softtrigger_detect_cond.notify_one();
+    while(TY_STATUS_BUSY == TYSendSoftTrigger(handle));
 }
 
 void PercipioDevice::setFrameCallback(FrameCallbackFunction callback)
