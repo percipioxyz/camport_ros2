@@ -5,7 +5,7 @@
 
 enum ParamType {
   Command,
-  Interger,
+  Integer,
   Float,
   Boolean,
   Enumeration,
@@ -32,7 +32,7 @@ TY_CAPI  TYParamGetVisibility           (TY_DEV_HANDLE hDevice, const char* feat
 //Command
 TY_CAPI  TYCommandExec                  (TY_DEV_HANDLE hDevice, const char* feat);
 
-//Interger
+//Integer
 TY_CAPI  TYIntegerSetValue              (TY_DEV_HANDLE hDevice, const char* feat, int64_t value);
 TY_CAPI  TYIntegerGetValue              (TY_DEV_HANDLE hDevice, const char* feat, int64_t* value);
 TY_CAPI  TYIntegerGetMin                (TY_DEV_HANDLE hDevice, const char* feat, int64_t* min);
