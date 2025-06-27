@@ -6,6 +6,7 @@
 #include <boost/function.hpp>
 #include <vector>
 #include <thread>
+#include <map>
 #include <condition_variable>
 #include <mutex>
 
@@ -73,6 +74,17 @@ struct percipio_stream_property
     std::string format;
 };
 
+struct percipio_video_mode
+{
+    uint32_t fmt;
+    uint32_t width;
+    uint32_t height;
+    uint32_t binning;
+    std::string desc;
+};
+
+typedef std::map<uint32_t, std::vector<percipio_video_mode>> PercipioVideoMode;
+
 class PercipioCameraNode;
 class PercipioDevice
 {
@@ -99,6 +111,9 @@ class PercipioDevice
         bool hasDepth();
         bool hasLeftIR();
         bool hasRightIR();
+
+        TY_STATUS dump_image_mode_list(const TY_COMPONENT_ID comp, std::vector<percipio_video_mode>& modes);
+        TY_STATUS image_mode_cfg(const TY_COMPONENT_ID comp, const percipio_video_mode& mode);
 
         void enable_gvsp_resend(const bool en);
 
@@ -132,13 +147,12 @@ class PercipioDevice
         bool load_default_parameter();
 
         std::mutex softtrigger_mutex;
-        //bool m_softtrigger_ready = false;
-        //std::condition_variable softtrigger_detect_cond;
 
         std::mutex offline_detect_mutex;
         std::condition_variable offline_detect_cond;
 
         TY_EVENT_INFO device_ros_event;
+
     private:
         PercipioCameraNode* _node;
 
@@ -150,6 +164,8 @@ class PercipioDevice
         std::string strFaceId;
         std::string strDeviceId;
         std::vector<percipio_stream_property> m_streams;
+
+        PercipioVideoMode mVideoMode;
 
         TY_AEC_ROI_PARAM ROI;
         bool enable_rgb_aec_roi = false;
@@ -201,11 +217,11 @@ class PercipioDevice
 
         TY_STATUS device_open(const char* faceId, const char* deviceId);
 
-        uint32_t StreamConvertComponent(const percipio_stream_index_pair& idx);
         bool resolveStreamResolution(const std::string& resolution_, int& width, int& height);
-        bool resolveStreamFormat(const std::string& format, uint32_t& fmt);
+        std::string parseStreamFormat(const std::string& format);
 
-        bool nominateStreamFormat(const uint32_t& fmt,  std::string& format);
+        TY_STATUS color_stream_aec_roi_init();
+
         void StreamDistortionMapInit(TY_COMPONENT_ID comp, percipio_distortion_map_info& map);
 
         void colorStreamReceive(cv::Mat& color, uint64_t& timestamp);

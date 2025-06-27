@@ -24,11 +24,6 @@ static inline int decodeCsiRaw10(unsigned char* src, unsigned char* dst, int wid
     for(size_t i = 0, j = 0; i < raw10_line_size * height; i+=5, j+=4)
     {
         //[A2 - A9] | [B2 - B9] | [C2 - C9] | [D2 - D9] | [A0A1-B0B1-C0C1-D0D1]
-        //dst[j + 0] = ((uint16_t)src[i + 0] << 2) | ((src[i + 4] & 0x3)  >> 0);
-        //dst[j + 1] = ((uint16_t)src[i + 1] << 2) | ((src[i + 4] & 0xc)  >> 2);
-        //dst[j + 2] = ((uint16_t)src[i + 2] << 2) | ((src[i + 4] & 0x30) >> 4);
-        //dst[j + 3] = ((uint16_t)src[i + 3] << 2) | ((src[i + 4] & 0xc0) >> 6);
-
         dst[j + 0] = src[i + 0];
         dst[j + 1] = src[i + 1];
         dst[j + 2] = src[i + 2];
@@ -46,9 +41,6 @@ static inline int decodeCsiRaw12(unsigned char* src, unsigned char* dst, int wid
     for(size_t i = 0, j = 0; i < raw12_line_size * height; i+=3, j+=2)
     {
         //[A4 - A11] | [B4 - B11] | [A0A1A2A3-B0B1B2B3]
-        //dst[j + 0] = ((uint16_t)src[i + 0] << 4) | ((src[i + 2] & 0x0f)  >> 0);
-        //dst[j + 1] = ((uint16_t)src[i + 1] << 4) | ((src[i + 2] & 0xf0)  >> 4);
-
         dst[j + 0] = src[i + 0];
         dst[j + 1] = src[i + 1];
     }
@@ -64,18 +56,48 @@ static inline int decodeCsiRaw14(unsigned char* src, unsigned short* dst, int wi
     for(size_t i = 0, j = 0; i < raw14_line_size * height; i+=7, j+=4)
     {
         //[A6 - A13] | [B6 - B13] | [C6 - C13] | [D6 - D13] | [A0A1A2A3A4A5-B0B1] | [B2B3B4B5-C0C1C2C3] | [C4C5-D0D1D2D3D4D5]
-        dst[j + 0] = ((uint16_t)src[i + 0] << 6) | ((src[i + 4] & 0x3f) >> 0);
-        dst[j + 1] = ((uint16_t)src[i + 1] << 6) | ((src[i + 4] & 0xc0) >> 6) | ((src[i + 5] & 0x0f) << 2);
-        dst[j + 2] = ((uint16_t)src[i + 2] << 6) | ((src[i + 5] & 0xf0) >> 4) | ((src[i + 6] & 0x03) << 4);
-        dst[j + 3] = ((uint16_t)src[i + 3] << 6) | ((src[i + 6] & 0xfc) >> 2);
+        dst[j + 0] = src[i + 0];
+        dst[j + 1] = src[i + 1];
+        dst[j + 2] = src[i + 2];
+        dst[j + 3] = src[i + 3];
+      }
+    return 0;
+}
+
+
+static inline int decodePacketRaw10(unsigned char* src, unsigned char* dst, int width, int height)
+{
+    if(width & 0x3) {
+        return -1;
     }
+
+    int raw10_line_size = 5 * width / 4;
+    //    byte0  -        byte1    -      byte2     -     byte3      -  byte4
+    // | A7 - A0 | B5 - B0 A9 - A8 | C3 -C0 B9 - B6 | D1 - D0 C9 -C4 | D9 -D2|
+    for(size_t i = 0; i < raw10_line_size * height; i+=5)
+    {
+        //high 8bit
+        dst[0] = (src[1] << 6) | (src[0] >> 2);
+        dst[1] = (src[2] << 4) | (src[1] >> 4);
+        dst[2] = (src[3] << 2) | (src[2] >> 6);
+        dst[3] = src[4];
+
+        src+=5;
+        dst+=4;
+    }
+    return 0;
+}
+
+static inline int decodePacketRaw12(unsigned char* src, unsigned char* dst, int width, int height)
+{
+    //TODO...
     return 0;
 }
 
 static inline int parseCsiRaw10(unsigned char* src, cv::Mat &dst, int width, int height)
 {
     dst = cv::Mat(height, width, CV_8U);
-    decodeCsiRaw10(src, (uchar*)dst.data, width, height);
+    decodeCsiRaw10(src, dst.data, width, height);
     return 0;
 }
 
@@ -86,196 +108,390 @@ static inline int parseCsiRaw12(unsigned char* src, cv::Mat &dst, int width, int
     return 0;
 }
 
+
+static inline int parsePacketRaw10(unsigned char* src, cv::Mat &dst, int width, int height)
+{
+    //TODO...
+    dst = cv::Mat(height, width, CV_8U);
+    decodePacketRaw10(src, dst.data, width, height);
+    return 0;
+}
+
+static inline int parsePacketRaw12(unsigned char* src, cv::Mat &dst, int width, int height)
+{
+    //TODO...
+    dst = cv::Mat(height, width, CV_8U);
+    decodePacketRaw12(src, dst.data, width, height);
+    return 0;
+}
+
 static inline int parseIrFrame(const TY_IMAGE_DATA* img, cv::Mat* pIR)
 {
-  if (img->pixelFormat == TY_PIXEL_FORMAT_MONO16 || img->pixelFormat==TY_PIXEL_FORMAT_TOF_IR_MONO16){
-    *pIR = cv::Mat(img->height, img->width, CV_16U, img->buffer).clone();
-  } else if(img->pixelFormat == TY_PIXEL_FORMAT_CSI_MONO10) {
-    parseCsiRaw10((uchar*)img->buffer, (*pIR), img->width, img->height);
-  } else if(img->pixelFormat == TY_PIXEL_FORMAT_MONO) {
-    *pIR = cv::Mat(img->height, img->width, CV_8U, img->buffer).clone();
-  } else if(img->pixelFormat == TY_PIXEL_FORMAT_CSI_MONO12) {
-    parseCsiRaw12((uchar*)img->buffer, (*pIR), img->width, img->height);
-  } 
-  else {
-    LOGE("Invalid IR frame fmt!");
-	  return -1;
-  }
+    if(img->pixelFormat == TYPixelFormatMono8) {
+        *pIR = cv::Mat(img->height, img->width, CV_8U, img->buffer).clone();
+    } else if(img->pixelFormat == TYPixelFormatMono10) {
+        parseCsiRaw10((uchar*)img->buffer, *pIR, img->width, img->height);
+    } else if(img->pixelFormat == TYPixelFormatMono12) {
+        parseCsiRaw12((uchar*)img->buffer, *pIR, img->width, img->height);
+    } else if(img->pixelFormat == TYPixelFormatPacketMono10) {
+        parsePacketRaw10((uchar*)img->buffer, *pIR, img->width, img->height);
+    } else if(img->pixelFormat == TYPixelFormatPacketMono12) {
+        parsePacketRaw12((uchar*)img->buffer, *pIR, img->width, img->height);
+    } else if (img->pixelFormat == TYPixelFormatMono16){
+        *pIR = cv::Mat(img->height, img->width, CV_16U, img->buffer).clone();
+    } else if (img->pixelFormat == TYPixelFormatTofIRFourGroupMono16){
+        *pIR = cv::Mat(img->height * 2, img->width * 2, CV_16U, img->buffer).clone();
+    } else {
+        LOGE("Invalid IR frame fmt!");
+	      return -1;
+    }
 
-  return 0;
+    return 0;
 }
 
 static inline int parseBayer8Frame(const TY_IMAGE_DATA* img, cv::Mat* pColor, TY_ISP_HANDLE color_isp_handle = NULL)
 {
-  int code = cv::COLOR_BayerGB2BGR;
-  switch (img->pixelFormat)
-  {
-  case TY_PIXEL_FORMAT_BAYER8GBRG:
-    code = cv::COLOR_BayerGR2BGR;
-    break;
-  case TY_PIXEL_FORMAT_BAYER8BGGR:
-    code = cv::COLOR_BayerRG2BGR;
-    break;                
-  case TY_PIXEL_FORMAT_BAYER8GRBG:
-    code = cv::COLOR_BayerGB2BGR;
-    break;                
-  case TY_PIXEL_FORMAT_BAYER8RGGB:
-    code = cv::COLOR_BayerBG2BGR;
-    break;
-  default:
-    LOGE("Invalid bayer8 fmt!");
-    return -1;
-  }
+    int code = cv::COLOR_BayerGB2BGR;
+    switch (img->pixelFormat)
+    {
+    case TYPixelFormatBayerGBRG8:
+        code = cv::COLOR_BayerGR2BGR;
+        break;
+    case TYPixelFormatBayerBGGR8:
+        code = cv::COLOR_BayerRG2BGR;
+        break;                
+    case TYPixelFormatBayerGRBG8:
+        code = cv::COLOR_BayerGB2BGR;
+        break;                
+    case TYPixelFormatBayerRGGB8:
+        code = cv::COLOR_BayerBG2BGR;
+        break;
+    default:
+        LOGE("Invalid bayer8 fmt!");
+        return -1;
+    }
 
-  if (!color_isp_handle){
     cv::Mat raw(img->height, img->width, CV_8U, img->buffer);
     cv::cvtColor(raw, *pColor, code);
-  }
-  else{
-    cv::Mat raw(img->height, img->width, CV_8U, img->buffer);
-    pColor->create(img->height, img->width, CV_8UC3);
-    int sz = img->height* img->width * 3;
-    TY_IMAGE_DATA out_buff = TYInitImageData(sz, pColor->data, img->width, img->height);
-    out_buff.pixelFormat = TY_PIXEL_FORMAT_BGR;
-    int res = TYISPProcessImage(color_isp_handle, img, &out_buff);
-    if (res != TY_STATUS_OK){
-      //fall back to  using opencv api
-      cv::Mat raw(img->height, img->width, CV_8U, img->buffer);
-      cv::cvtColor(raw, *pColor, code);
-    }
-  }
-  return 0;
+    return 0;
 }
 
 static inline int parseBayer10Frame(const TY_IMAGE_DATA* img, cv::Mat* pColor)
 {
-  int code = cv::COLOR_BayerGB2BGR;
-  switch (img->pixelFormat)
-  {
-  case TY_PIXEL_FORMAT_CSI_BAYER10GBRG:
-    code = cv::COLOR_BayerGR2BGR;
-    break;
-  case TY_PIXEL_FORMAT_CSI_BAYER10BGGR:
-    code = cv::COLOR_BayerRG2BGR;
-    break;                
-  case TY_PIXEL_FORMAT_CSI_BAYER10GRBG:
-    code = cv::COLOR_BayerGB2BGR;
-    break;                
-  case TY_PIXEL_FORMAT_CSI_BAYER10RGGB:
-    code = cv::COLOR_BayerBG2BGR;
-    break;
-  default:
-    LOGE("Invalid bayer10 fmt!");
-    return -1;
-  }
-  cv::Mat raw8;
-  parseCsiRaw10((uchar*)img->buffer, raw8, img->width, img->height);
-  cv::cvtColor(raw8, *pColor, code);
+    int code = cv::COLOR_BayerGB2BGR;
+    switch (img->pixelFormat)
+    {
+    case TYPixelFormatBayerGBRG10:
+        code = cv::COLOR_BayerGR2BGR;
+        break;
+    case TYPixelFormatBayerBGGR10:
+        code = cv::COLOR_BayerRG2BGR;
+        break;                
+    case TYPixelFormatBayerGRBG10:
+        code = cv::COLOR_BayerGB2BGR;
+        break;                
+    case TYPixelFormatBayerRGGB10:
+        code = cv::COLOR_BayerBG2BGR;
+        break;
+    default:
+        LOGE("Invalid bayer10 fmt!");
+        return -1;
+    }
+    cv::Mat raw;
+    parseCsiRaw10((uchar*)img->buffer, raw, img->width, img->height);
+    cv::cvtColor(raw, *pColor, code);
   
-  return 0;
+    return 0;
 }
 
 static inline int parseBayer12Frame(const TY_IMAGE_DATA* img, cv::Mat* pColor)
 {
-  int code = cv::COLOR_BayerGB2BGR;
-  switch (img->pixelFormat)
-  {
-  case TY_PIXEL_FORMAT_CSI_BAYER12GBRG:
-    code = cv::COLOR_BayerGR2BGR;
-    break;
-  case TY_PIXEL_FORMAT_CSI_BAYER12BGGR:
-    code = cv::COLOR_BayerRG2BGR;
-    break;                
-  case TY_PIXEL_FORMAT_CSI_BAYER12GRBG:
-    code = cv::COLOR_BayerGB2BGR;
-    break;                
-  case TY_PIXEL_FORMAT_CSI_BAYER12RGGB:
-    code = cv::COLOR_BayerBG2BGR;
-    break;
-  default:
-    LOGE("Invalid bayer12 fmt!");
-    return -1;
-  }
-  cv::Mat raw8;
-  parseCsiRaw12((uchar*)img->buffer, raw8, img->width, img->height);
-  cv::cvtColor(raw8, *pColor, code);
+    int code = cv::COLOR_BayerGB2BGR;
+    switch (img->pixelFormat)
+    {
+    case TYPixelFormatBayerGBRG12:
+        code = cv::COLOR_BayerGR2BGR;
+        break;
+    case TYPixelFormatBayerBGGR12:
+        code = cv::COLOR_BayerRG2BGR;
+        break;
+    case TYPixelFormatBayerGRBG12:
+        code = cv::COLOR_BayerGB2BGR;
+        break;
+    case TYPixelFormatBayerRGGB12:
+        code = cv::COLOR_BayerBG2BGR;
+        break;
+    default:
+        LOGE("Invalid bayer12 fmt!");
+        return -1;
+    }
+    cv::Mat raw;
+    parseCsiRaw12((uchar*)img->buffer, raw, img->width, img->height);
+    cv::cvtColor(raw, *pColor, code);
 
-  return 0;
+    return 0;
+}
+
+static inline int parsePacketBayer10Frame(const TY_IMAGE_DATA* img, cv::Mat* pColor)
+{
+    int code = cv::COLOR_BayerGB2BGR;
+    switch (img->pixelFormat)
+    {
+    case TYPixelFormatPacketBayerGBRG10:
+        code = cv::COLOR_BayerGR2BGR;
+        break;
+    case TYPixelFormatPacketBayerBGGR10:
+        code = cv::COLOR_BayerRG2BGR;
+        break;                
+    case TYPixelFormatPacketBayerGRBG10:
+        code = cv::COLOR_BayerGB2BGR;
+        break;                
+    case TYPixelFormatPacketBayerRGGB10:
+        code = cv::COLOR_BayerBG2BGR;
+        break;
+    default:
+        LOGE("Invalid packet bayer10 fmt!");
+        return -1;
+    }
+    cv::Mat raw;
+    parsePacketRaw10((uchar*)img->buffer, raw, img->width, img->height);
+    cv::cvtColor(raw, *pColor, code);
+    return 0;
+}
+
+static inline int parsePacketBayer12Frame(const TY_IMAGE_DATA* img, cv::Mat* pColor)
+{
+    int code = cv::COLOR_BayerGB2BGR;
+    switch (img->pixelFormat)
+    {
+    case TYPixelFormatPacketBayerGBRG12:
+        code = cv::COLOR_BayerGR2BGR;
+        break;
+    case TYPixelFormatPacketBayerBGGR12:
+        code = cv::COLOR_BayerRG2BGR;
+        break;                
+    case TYPixelFormatPacketBayerGRBG12:
+        code = cv::COLOR_BayerGB2BGR;
+        break;                
+    case TYPixelFormatPacketBayerRGGB12:
+        code = cv::COLOR_BayerBG2BGR;
+        break;
+    default:
+        LOGE("Invalid packet bayer12 fmt!");
+        return -1;
+    }
+    cv::Mat raw;
+    parsePacketRaw12((uchar*)img->buffer, raw, img->width, img->height);
+    cv::cvtColor(raw, *pColor, code);
+    return 0;
 }
 
 static inline int parseColorFrame(const TY_IMAGE_DATA* img, cv::Mat* pColor, TY_ISP_HANDLE color_isp_handle = NULL)
 {
-  int ret = 0;
-  if (img->pixelFormat == TYPixelFormatJPEG){
-    std::vector<uchar> _v((uchar*)img->buffer, (uchar*)img->buffer + img->size);
-    *pColor = cv::imdecode(_v, cv::IMREAD_COLOR);
-    ASSERT(img->width == pColor->cols && img->height == pColor->rows);
-  }
-  else if (img->pixelFormat == TYPixelFormatYUV422_8){
-    cv::Mat yuv(img->height, img->width, CV_8UC2, img->buffer);
-    cv::cvtColor(yuv, *pColor, cv::COLOR_YUV2BGR_YUYV);
-  }
-  else if (img->pixelFormat == TYPixelFormatRGB8){
-    cv::Mat rgb(img->height, img->width, CV_8UC3, img->buffer);
-    cv::cvtColor(rgb, *pColor, cv::COLOR_RGB2BGR);
-  }
-  else if (img->pixelFormat == TYPixelFormatBGR8){
-    *pColor = cv::Mat(img->height, img->width, CV_8UC3, img->buffer);
-  }
-  else if (img->pixelFormat == TY_PIXEL_FORMAT_BAYER8GBRG || 
-           img->pixelFormat == TY_PIXEL_FORMAT_BAYER8BGGR || 
-           img->pixelFormat == TY_PIXEL_FORMAT_BAYER8GRBG || 
-           img->pixelFormat == TY_PIXEL_FORMAT_BAYER8RGGB) 
-  {
-    ret = parseBayer8Frame(img, pColor, color_isp_handle);
-  }
-  else if (img->pixelFormat == TY_PIXEL_FORMAT_CSI_BAYER10GBRG || 
-           img->pixelFormat == TY_PIXEL_FORMAT_CSI_BAYER10BGGR || 
-           img->pixelFormat == TY_PIXEL_FORMAT_CSI_BAYER10GRBG || 
-           img->pixelFormat == TY_PIXEL_FORMAT_CSI_BAYER10RGGB) 
-  {
-    ret = parseBayer10Frame(img, pColor);
-  }
-  else if(img->pixelFormat == TY_PIXEL_FORMAT_CSI_BAYER12GBRG || 
-          img->pixelFormat == TY_PIXEL_FORMAT_CSI_BAYER12BGGR || 
-          img->pixelFormat == TY_PIXEL_FORMAT_CSI_BAYER12GRBG || 
-          img->pixelFormat == TY_PIXEL_FORMAT_CSI_BAYER12RGGB) 
-  {
-    ret = parseBayer12Frame(img, pColor);
-  }
-  else if (img->pixelFormat == TY_PIXEL_FORMAT_MONO){
-    cv::Mat gray(img->height, img->width, CV_8U, img->buffer);
-    cv::cvtColor(gray, *pColor, cv::COLOR_GRAY2BGR);
-  }
-  else if (img->pixelFormat == TY_PIXEL_FORMAT_CSI_MONO10){
-    cv::Mat gray8;
-    parseCsiRaw10((uchar*)img->buffer, gray8, img->width, img->height);
-    cv::cvtColor(gray8, *pColor, cv::COLOR_GRAY2BGR);
-  }
-  else {
-    LOGE("Invalid RGB frame fmt!");
-  }
+    int ret = 0;
+    if (img->pixelFormat == TYPixelFormatJPEG){
+        std::vector<uchar> _v((uchar*)img->buffer, (uchar*)img->buffer + img->size);
+        *pColor = cv::imdecode(_v, cv::IMREAD_COLOR);
+        ASSERT(img->width == pColor->cols && img->height == pColor->rows);
+    }
+    else if (img->pixelFormat == TYPixelFormatYUV422_8){
+        cv::Mat yuv(img->height, img->width, CV_8UC2, img->buffer);
+        cv::cvtColor(yuv, *pColor, cv::COLOR_YUV2BGR_YUYV);
+    }
+    else if(img->pixelFormat == TYPixelFormatYCbCr420_8_YY_CbCr_Planar) {
+        cv::Mat yuv420(img->height + img->height/2, img->width, CV_8UC1, img->buffer);
+        cv::cvtColor(yuv420, *pColor, cv::COLOR_YUV2BGR_I420);
+    }
+    else if(img->pixelFormat == TYPixelFormatYCbCr420_8_YY_CrCb_Planar) {
+        cv::Mat yuv420(img->height + img->height/2, img->width, CV_8UC1, img->buffer);
+        cv::cvtColor(yuv420, *pColor, cv::COLOR_YUV420p2BGR);
+    }
+    else if(img->pixelFormat == TYPixelFormatYCbCr420_8_YY_CbCr_Semiplanar) {
+        cv::Mat yuv420(img->height + img->height/2, img->width, CV_8UC1, img->buffer);
+        cv::cvtColor(yuv420, *pColor, cv::COLOR_YUV2BGR_NV12);
+    }
+    else if(img->pixelFormat == TYPixelFormatYCbCr420_8_YY_CrCb_Semiplanar) {
+        cv::Mat yuv420(img->height + img->height/2, img->width, CV_8UC1, img->buffer);
+        cv::cvtColor(yuv420, *pColor, cv::COLOR_YUV2BGR_NV21);
+    }
+    else if (img->pixelFormat == TYPixelFormatRGB8){
+        cv::Mat rgb(img->height, img->width, CV_8UC3, img->buffer);
+        cv::cvtColor(rgb, *pColor, cv::COLOR_RGB2BGR);
+    }
+    else if (img->pixelFormat == TYPixelFormatBGR8){
+        *pColor = cv::Mat(img->height, img->width, CV_8UC3, img->buffer).clone();
+    }
+    else if (img->pixelFormat == TYPixelFormatBayerGBRG8 || 
+            img->pixelFormat == TYPixelFormatBayerBGGR8 || 
+            img->pixelFormat == TYPixelFormatBayerGRBG8 || 
+            img->pixelFormat == TYPixelFormatBayerRGGB8) 
+    {
+        ret = parseBayer8Frame(img, pColor);
+    }
+    else if (img->pixelFormat == TYPixelFormatBayerGBRG10 || 
+            img->pixelFormat == TYPixelFormatBayerBGGR10 || 
+            img->pixelFormat == TYPixelFormatBayerGRBG10 || 
+            img->pixelFormat == TYPixelFormatBayerRGGB10) 
+    {
+        ret = parseBayer10Frame(img, pColor);
+    }
+    else if(img->pixelFormat == TYPixelFormatBayerGBRG12 || 
+            img->pixelFormat == TYPixelFormatBayerBGGR12 || 
+            img->pixelFormat == TYPixelFormatBayerGRBG12 || 
+            img->pixelFormat == TYPixelFormatBayerRGGB12) 
+    {
+        ret = parseBayer12Frame(img, pColor);
+    }
+    else if(img->pixelFormat == TYPixelFormatPacketBayerGBRG10 || 
+            img->pixelFormat == TYPixelFormatPacketBayerBGGR10 || 
+            img->pixelFormat == TYPixelFormatPacketBayerGRBG10 || 
+            img->pixelFormat == TYPixelFormatPacketBayerRGGB10)
+    {
+        ret = parsePacketBayer10Frame(img, pColor);
+    }
+    else if(img->pixelFormat == TYPixelFormatPacketBayerGBRG12 || 
+        img->pixelFormat == TYPixelFormatPacketBayerBGGR12 || 
+        img->pixelFormat == TYPixelFormatPacketBayerGRBG12 || 
+        img->pixelFormat == TYPixelFormatPacketBayerRGGB12) 
+    {
+        ret = parsePacketBayer12Frame(img, pColor);
+    }
+    else if (img->pixelFormat == TYPixelFormatMono8){
+        cv::Mat gray(img->height, img->width, CV_8U, img->buffer);
+        cv::cvtColor(gray, *pColor, cv::COLOR_GRAY2BGR);
+    }
+    else if (img->pixelFormat == TYPixelFormatMono10){
+        parseCsiRaw10((uchar*)img->buffer, *pColor, img->width, img->height);
+    }
+    else if(img->pixelFormat == TYPixelFormatMono12) {
+        parseCsiRaw12((uchar*)img->buffer, *pColor, img->width, img->height);
+    }
+    else if (img->pixelFormat == TYPixelFormatPacketMono10){
+        parsePacketRaw10((uchar*)img->buffer, *pColor, img->width, img->height);
+    }
+    else if(img->pixelFormat == TYPixelFormatPacketMono12) {
+        parsePacketRaw12((uchar*)img->buffer, *pColor, img->width, img->height);
+    }
 
-  return ret;
+    return ret;
+}
+
+static inline int parseImage(const TY_IMAGE_DATA* img, cv::Mat* image)
+{
+    int ret = 0;
+    if (img->pixelFormat == TYPixelFormatJPEG){
+        std::vector<uchar> _v((uchar*)img->buffer, (uchar*)img->buffer + img->size);
+        *image = cv::imdecode(_v, cv::IMREAD_COLOR);
+        ASSERT(img->width == image->cols && img->height == image->rows);
+    }
+    else if (img->pixelFormat == TYPixelFormatYUV422_8){
+        cv::Mat yuv(img->height, img->width, CV_8UC2, img->buffer);
+        cv::cvtColor(yuv, *image, cv::COLOR_YUV2BGR_YUYV);
+    }
+    else if(img->pixelFormat == TYPixelFormatYCbCr420_8_YY_CbCr_Planar) {
+        cv::Mat yuv420(img->height + img->height/2, img->width, CV_8UC1, img->buffer);
+        cv::cvtColor(yuv420, *image, cv::COLOR_YUV2BGR_I420);
+    }
+    else if(img->pixelFormat == TYPixelFormatYCbCr420_8_YY_CrCb_Planar) {
+        cv::Mat yuv420(img->height + img->height/2, img->width, CV_8UC1, img->buffer);
+        cv::cvtColor(yuv420, *image, cv::COLOR_YUV420p2BGR);
+    }
+    else if(img->pixelFormat == TYPixelFormatYCbCr420_8_YY_CbCr_Semiplanar) {
+        cv::Mat yuv420(img->height + img->height/2, img->width, CV_8UC1, img->buffer);
+        cv::cvtColor(yuv420, *image, cv::COLOR_YUV2BGR_NV12);
+    }
+    else if(img->pixelFormat == TYPixelFormatYCbCr420_8_YY_CrCb_Semiplanar) {
+        cv::Mat yuv420(img->height + img->height/2, img->width, CV_8UC1, img->buffer);
+        cv::cvtColor(yuv420, *image, cv::COLOR_YUV2BGR_NV21);
+    }
+    else if (img->pixelFormat == TYPixelFormatRGB8){
+        cv::Mat rgb(img->height, img->width, CV_8UC3, img->buffer);
+        cv::cvtColor(rgb, *image, cv::COLOR_RGB2BGR);
+    }
+    else if (img->pixelFormat == TYPixelFormatBGR8){
+        *image = cv::Mat(img->height, img->width, CV_8UC3, img->buffer).clone();
+    }
+    else if (img->pixelFormat == TYPixelFormatBayerGBRG8 || 
+            img->pixelFormat == TYPixelFormatBayerBGGR8 || 
+            img->pixelFormat == TYPixelFormatBayerGRBG8 || 
+            img->pixelFormat == TYPixelFormatBayerRGGB8) 
+    {
+        ret = parseBayer8Frame(img, image);
+    }
+    else if (img->pixelFormat == TYPixelFormatBayerGBRG10 || 
+            img->pixelFormat == TYPixelFormatBayerBGGR10 || 
+            img->pixelFormat == TYPixelFormatBayerGRBG10 || 
+            img->pixelFormat == TYPixelFormatBayerRGGB10) 
+    {
+        ret = parseBayer10Frame(img, image);
+    }
+    else if(img->pixelFormat == TYPixelFormatBayerGBRG12 || 
+            img->pixelFormat == TYPixelFormatBayerBGGR12 || 
+            img->pixelFormat == TYPixelFormatBayerGRBG12 || 
+            img->pixelFormat == TYPixelFormatBayerRGGB12) 
+    {
+        ret = parseBayer12Frame(img, image);
+    }
+    else if (img->pixelFormat == TYPixelFormatPacketBayerGBRG10 || 
+        img->pixelFormat == TYPixelFormatPacketBayerBGGR10 || 
+        img->pixelFormat == TYPixelFormatPacketBayerGRBG10 || 
+        img->pixelFormat == TYPixelFormatPacketBayerRGGB10) 
+    {
+        ret = parsePacketBayer10Frame(img, image);
+    }
+    else if(img->pixelFormat == TYPixelFormatPacketBayerGBRG12 || 
+            img->pixelFormat == TYPixelFormatPacketBayerBGGR12 || 
+            img->pixelFormat == TYPixelFormatPacketBayerGRBG12 || 
+            img->pixelFormat == TYPixelFormatPacketBayerRGGB12) 
+    {
+        ret = parsePacketBayer12Frame(img, image);
+    }
+
+    else if(img->pixelFormat == TYPixelFormatMono8) {
+        *image = cv::Mat(img->height, img->width, CV_8U, img->buffer).clone();
+    }
+    else if (img->pixelFormat == TYPixelFormatMono10){
+        ret = parseCsiRaw10((uchar*)img->buffer, *image, img->width, img->height);
+    }
+    else if (img->pixelFormat == TYPixelFormatPacketMono10){
+        ret = parsePacketRaw10((uchar*)img->buffer, *image, img->width, img->height);
+    }
+    else if(img->pixelFormat == TYPixelFormatMono12) {
+        ret = parseCsiRaw12((uchar*)img->buffer, *image, img->width, img->height);
+    } 
+    else if(img->pixelFormat == TYPixelFormatPacketMono12) {
+        ret = parsePacketRaw12((uchar*)img->buffer, *image, img->width, img->height);
+    } 
+    else if (img->pixelFormat == TYPixelFormatMono16){
+        *image = cv::Mat(img->height, img->width, CV_16U, img->buffer).clone();
+    }
+    else if (img->pixelFormat == TYPixelFormatTofIRFourGroupMono16) {
+        *image = cv::Mat(img->height * 2, img->width * 2, CV_16U, img->buffer).clone();
+    }
+    else {
+        return -1;
+    }
+
+    return ret;
 }
 
 static inline int parseFrame(const TY_FRAME_DATA& frame, cv::Mat* pDepth
                              , cv::Mat* pLeftIR, cv::Mat* pRightIR
-                             , cv::Mat* pColor, TY_ISP_HANDLE color_isp_handle = NULL)
+                             , cv::Mat* pColor)
 {
     for (int i = 0; i < frame.validCount; i++){
         if (frame.image[i].status != TY_STATUS_OK) continue;
 
         // get depth image
         if (pDepth && frame.image[i].componentID == TY_COMPONENT_DEPTH_CAM){
-                if (frame.image[i].pixelFormat == TY_PIXEL_FORMAT_XYZ48) {
+            if (frame.image[i].pixelFormat == TYPixelFormatCoord3D_ABC16) {
                 *pDepth = cv::Mat(frame.image[i].height, frame.image[i].width
-                          , CV_16SC3, frame.image[i].buffer).clone();
-                }
-                else {
-                *pDepth = cv::Mat(frame.image[i].height, frame.image[i].width
-                          , CV_16U, frame.image[i].buffer).clone();
-                }
+                              , CV_16SC3, frame.image[i].buffer).clone();
+            }
+          else {
+              *pDepth = cv::Mat(frame.image[i].height, frame.image[i].width
+                            , CV_16U, frame.image[i].buffer).clone();
+          }
         }
         // get left ir image
         if (pLeftIR && frame.image[i].componentID == TY_COMPONENT_IR_CAM_LEFT){
@@ -287,7 +503,7 @@ static inline int parseFrame(const TY_FRAME_DATA& frame, cv::Mat* pDepth
         }
         // get BGR
         if (pColor && frame.image[i].componentID == TY_COMPONENT_RGB_CAM){
-            parseColorFrame(&frame.image[i], pColor, color_isp_handle);
+            parseColorFrame(&frame.image[i], pColor);
         }
     }
 
@@ -333,7 +549,6 @@ static void writePointCloud(const cv::Point3f* pnts, const cv::Vec3b *color, siz
 
     fclose(fp);
 }
-
 
 class CallbackWrapper
 {

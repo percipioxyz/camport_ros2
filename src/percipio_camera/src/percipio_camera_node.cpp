@@ -17,6 +17,8 @@
 
 namespace percipio_camera {
 
+#define LOG_HEAD_PERCIPIO_CAMERA_NODE  "percipio_camera_node"
+
 const static percipio_stream_index_pair DEPTH_STREAM{DEPTH, 0};
 const static percipio_stream_index_pair COLOR_STREAM{COLOR, 0};
 const static percipio_stream_index_pair LEFT_IR_STREAM{IR_LETF, 0};
@@ -46,7 +48,7 @@ static rmw_qos_profile_t getRMWQosProfileFromString(const std::string &str_qos) 
   } else if (upper_str_qos == "SENSOR_DATA") {
     return rmw_qos_profile_sensor_data;
   } else {
-    RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"),
+    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE),
                         "Invalid QoS profile: " << upper_str_qos << ". Using default QoS profile.");
     return rmw_qos_profile_default;
   }
@@ -66,7 +68,7 @@ PercipioCameraNode::PercipioCameraNode(rclcpp::Node* node, std::shared_ptr<Perci
 
 PercipioCameraNode::~PercipioCameraNode()
 {
-  RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "PercipioCameraNode release...");
+  RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "PercipioCameraNode release...");
   if(device_ptr.get()) {
     device_ptr->stream_stop();
   }
@@ -122,10 +124,7 @@ void PercipioCameraNode::getParameters() {
     setAndGetNodeParameter<std::string>(color_aec_roi_desc, param_name_desc, "");
     if(color_aec_roi_desc.length()) {
         int cnt = sscanf(color_aec_roi_desc.c_str(), "%d.%d.%d.%d", &roi[0], &roi[1], &roi[2], &roi[3]);
-        if(4 == cnt) {
-            b_enable_roi_aec = true;
-            RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "color roi aec enable!");
-        }
+        if(4 == cnt) b_enable_roi_aec = true;
     }
 
     //gvsp resend
@@ -166,22 +165,22 @@ void PercipioCameraNode::getParameters() {
 
 void PercipioCameraNode::setupDevices() {
     if(!device_ptr->hasColor()) {
-        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Color image data stream is not supported!");
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Color image data stream is not supported!");
         stream_enable[COLOR_STREAM] = false;
     }
 
     if(!device_ptr->hasDepth()) {
-        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Depth image data stream is not supported!");
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Depth image data stream is not supported!");
         stream_enable[DEPTH_STREAM] = false;
     }
 
     if(!device_ptr->hasLeftIR()) {
-        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Left-IR image data stream is not supported!");
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Left-IR image data stream is not supported!");
         stream_enable[LEFT_IR_STREAM] = false;
     }
 
     if(!device_ptr->hasRightIR()) {
-        RCLCPP_WARN_STREAM(rclcpp::get_logger("percipio_device"), "Right-IR image data stream is not supported!");
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Right-IR image data stream is not supported!");
         stream_enable[RIGHT_IR_STREAM] = false;
     }
 
@@ -257,7 +256,7 @@ void PercipioCameraNode::startStreams() {
 
 void PercipioCameraNode::topic_callback(const std_msgs::msg::String::SharedPtr msg) const
 {
-    RCLCPP_INFO(rclcpp::get_logger("percipio_camera"), "    got Event: '%s'", msg->data.c_str());
+    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "    got Event: '%s'", msg->data.c_str());
     if(msg->data.find("SoftTrigger") == 0) {
         device_ptr->send_softtrigger();
     }
@@ -317,21 +316,21 @@ void PercipioCameraNode::setupTopics() {
 void PercipioCameraNode::SendOfflineMsg(const char* sn) {
     auto msg = std_msgs::msg::String();
     msg.data = " DeviceOffline<" + std::string(sn) + ">";
-    RCLCPP_INFO(rclcpp::get_logger("percipio_camera"), "Publishing: '%s'", msg.data.c_str());
+    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Publishing: '%s'", msg.data.c_str());
     device_event_publisher_->publish(std::move(msg));
 }
 
 void PercipioCameraNode::SendConnectMsg(const char* sn) {
     auto msg = std_msgs::msg::String();
     msg.data = " DeviceConnect<" + std::string(sn) + ">";
-    RCLCPP_INFO(rclcpp::get_logger("percipio_camera"), "Publishing: '%s'", msg.data.c_str());
+    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Publishing: '%s'", msg.data.c_str());
     device_event_publisher_->publish(std::move(msg));
 }
 
 void PercipioCameraNode::SendTimetMsg(const char* sn) {
     auto msg = std_msgs::msg::String();
     msg.data = " DeviceTimeout<" + std::string(sn) + ">";
-    RCLCPP_INFO(rclcpp::get_logger("percipio_camera"), "Publishing: '%s'", msg.data.c_str());
+    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Publishing: '%s'", msg.data.c_str());
     device_event_publisher_->publish(std::move(msg));
 }
 
@@ -371,7 +370,7 @@ void PercipioCameraNode::publishLeftIRFrame(percipio_camera::VideoStream& stream
 
     const cv::Mat& IR = stream.getLeftIRImage();
     if(IR.empty()) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "ir image is empty.");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "ir image is empty.");
         return;
     }
 
@@ -382,7 +381,7 @@ void PercipioCameraNode::publishLeftIRFrame(percipio_camera::VideoStream& stream
     else if(type == CV_16U)
         sz_encoding_type = sensor_msgs::image_encodings::MONO16;
     else {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Invalid ir image format.");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Invalid ir image format.");
         return;
     }
 
@@ -411,7 +410,7 @@ void PercipioCameraNode::publishRightIRFrame(percipio_camera::VideoStream& strea
 
     const cv::Mat& IR = stream.getRightIRImage();
     if(IR.empty()) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "ir image is empty.");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "ir image is empty.");
         return;
     }
 
@@ -422,7 +421,7 @@ void PercipioCameraNode::publishRightIRFrame(percipio_camera::VideoStream& strea
     else if(type == CV_16U)
         sz_encoding_type = sensor_msgs::image_encodings::MONO16;
     else {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger("percipio_camera"), "Invalid ir image format.");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Invalid ir image format.");
         return;
     }
 

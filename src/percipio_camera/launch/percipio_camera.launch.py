@@ -28,6 +28,9 @@ def generate_launch_description():
         # Enable rgb stream output
         DeclareLaunchArgument('color_enable', default_value='true'),
         DeclareLaunchArgument('color_resolution', default_value='"1280x960"'),
+        #format list:yuv / jpeg / bayer / mono / depth16/xyz48...
+        #DeclareLaunchArgument('color_format', default_value='"yuv"'),
+
         
         # Used to set the area of interest for color camera auto exposure
         # This setting requires that the camera itself supports this feature, otherwise the setting is invalid
