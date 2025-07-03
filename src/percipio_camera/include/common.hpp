@@ -10,8 +10,6 @@
 #include "MatViewer.hpp"
 #include "TYThread.hpp"
 #include "DepthInpainter.hpp"
-#include "TyIsp.h"
-#include "BayerISP.hpp"
 #include "CommandLineParser.hpp"
 #include "CommandLineFeatureHelper.hpp"
 
@@ -149,7 +147,7 @@ static inline int parseIrFrame(const TY_IMAGE_DATA* img, cv::Mat* pIR)
     return 0;
 }
 
-static inline int parseBayer8Frame(const TY_IMAGE_DATA* img, cv::Mat* pColor, TY_ISP_HANDLE color_isp_handle = NULL)
+static inline int parseBayer8Frame(const TY_IMAGE_DATA* img, cv::Mat* pColor)
 {
     int code = cv::COLOR_BayerGB2BGR;
     switch (img->pixelFormat)
@@ -286,7 +284,7 @@ static inline int parsePacketBayer12Frame(const TY_IMAGE_DATA* img, cv::Mat* pCo
     return 0;
 }
 
-static inline int parseColorFrame(const TY_IMAGE_DATA* img, cv::Mat* pColor, TY_ISP_HANDLE color_isp_handle = NULL)
+static inline int parseColorFrame(const TY_IMAGE_DATA* img, cv::Mat* pColor)
 {
     int ret = 0;
     if (img->pixelFormat == TYPixelFormatJPEG){
