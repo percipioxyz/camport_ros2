@@ -22,7 +22,6 @@ set(dependencies
   camera_info_manager
   image_transport
   image_publisher
-  OpenCV
   rclcpp
   rclcpp_components
   sensor_msgs
@@ -53,6 +52,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 #find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs  REQUIRED)
+find_package(cv_bridge REQUIRED)
 
 set(SOURCE_FILES
   src/percipio_camera_node_driver.cpp
@@ -99,53 +99,42 @@ endmacro()
 
 add_percipio_ros_executable(list_devices src/list_devices.cpp)
 
-find_package(PCL REQUIRED)
-if(NOT PCL_FOUND)
-    message(FATAL_ERROR "PCL library not found")
-else()
-    find_package(OpenCV REQUIRED)
-    if (NOT OpenCV_FOUND)
-        message(FATAL_ERROR "OpenCV library not found")
-    else()
-        message(STATUS "OpenCV version: ${OpenCV_VERSION}")
-        message(STATUS "PLC version: ${PLC_VERSION}")
-        include_directories(${PCL_INCLUDE_DIRS})
-        include_directories(${OpenCV_INCLUDE_DIRS})
-        include_directories(${SOURCE_INCLUDES_DIR})
 
-        add_library(${PROJECT_NAME} SHARED
-            ${SOURCE_FILES}
-        )
+message(STATUS "OpenCV version: ${OpenCV_VERSION}")
+message(STATUS "PLC version: ${PLC_VERSION}")
+include_directories(${PCL_INCLUDE_DIRS})
+include_directories(${OpenCV_INCLUDE_DIRS})
+include_directories(${SOURCE_INCLUDES_DIR})
+add_library(${PROJECT_NAME} SHARED
+    ${SOURCE_FILES}
+)
+ament_target_dependencies(${PROJECT_NAME} ${dependencies})
+target_include_directories(${PROJECT_NAME} PUBLIC ${SDK_INCLUDE_DIRS} ${SOURCE_INCLUDES_DIR})
+target_link_libraries(${PROJECT_NAME} ${SDK_LIBRARIES} ${rclcpp_LIBRARIES} ${opencv_LIBRARIES})
 
-        ament_target_dependencies(${PROJECT_NAME} ${dependencies})
-        target_include_directories(${PROJECT_NAME} PUBLIC ${SDK_INCLUDE_DIRS} ${SOURCE_INCLUDES_DIR})
-        target_link_libraries(${PROJECT_NAME} ${SDK_LIBRARIES})
-        
-        rclcpp_components_register_node(${PROJECT_NAME}
-            PLUGIN "percipio_camera::PercipioCameraNodeDriver"
-            EXECUTABLE percipio_camera_node
-        )
+rclcpp_components_register_node(${PROJECT_NAME}
+    PLUGIN "percipio_camera::PercipioCameraNodeDriver"
+    EXECUTABLE percipio_camera_node
+)
 
-        install(TARGETS ${PROJECT_NAME}
-            ARCHIVE DESTINATION lib
-            LIBRARY DESTINATION lib
-            RUNTIME DESTINATION bin
-        )
-        
-        file(GLOB lib_files ${CMAKE_CURRENT_SOURCE_DIR}/camport3/lib/linux/lib_${ARCH}/*) 
 
-        install(FILES ${lib_files} DESTINATION lib)
-        install(DIRECTORY include/ DESTINATION include)
-        install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)
-        install(TARGETS ${PROJECT_NAME}
-            ARCHIVE DESTINATION lib
-            LIBRARY DESTINATION lib
-            RUNTIME DESTINATION bin
-        )
-            
-        ament_export_libraries(${PROJECT_NAME})
-    endif()
-endif()
+ament_export_libraries(${PROJECT_NAME})
+
+install(TARGETS ${PROJECT_NAME}
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
+)
+
+file(GLOB lib_files ${CMAKE_CURRENT_SOURCE_DIR}/camport3/lib/linux/lib_${ARCH}/*) 
+install(FILES ${lib_files} DESTINATION lib)
+install(DIRECTORY include/ DESTINATION include)
+install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)
+install(TARGETS ${PROJECT_NAME}
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
+)
 
 install(TARGETS list_devices
   DESTINATION lib/${PROJECT_NAME}/)

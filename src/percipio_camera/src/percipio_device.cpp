@@ -1019,6 +1019,7 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
             TYGetStruct(handle, m_comp, TY_STRUCT_CAM_INTRINSIC, &cam_depth_intrinsic[0], cam_depth_intrinsic.size() * sizeof(float));
             TYGetFloat(handle, m_comp, TY_FLOAT_SCALE_UNIT, &f_scale_unit);
             TYGetStruct(handle, m_comp, TY_STRUCT_CAM_CALIB_DATA, &cam_depth_calib_data, sizeof(cam_depth_calib_data));
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth stream scale unit: " << f_scale_unit);
 #ifdef IMAGE_DoUnsitortion_With_OpenCV
             StreamDistortionMapInit(TY_COMPONENT_DEPTH_CAM, depth_map);
 #else

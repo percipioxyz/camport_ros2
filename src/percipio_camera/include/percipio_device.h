@@ -14,7 +14,7 @@
 #include "DepthStreamProc.h"
 #include "percipio_video_mode.h"
 
-//#define IMAGE_DoUnsitortion_With_OpenCV     
+#define IMAGE_DoUnsitortion_With_OpenCV     
 
 namespace percipio_camera {
 
