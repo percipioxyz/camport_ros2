@@ -1020,9 +1020,7 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
             TYGetFloat(handle, m_comp, TY_FLOAT_SCALE_UNIT, &f_scale_unit);
             TYGetStruct(handle, m_comp, TY_STRUCT_CAM_CALIB_DATA, &cam_depth_calib_data, sizeof(cam_depth_calib_data));
             RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth stream scale unit: " << f_scale_unit);
-#ifdef IMAGE_DoUnsitortion_With_OpenCV
-            StreamDistortionMapInit(TY_COMPONENT_DEPTH_CAM, depth_map);
-#else
+
             status = TYGetStruct(handle, TY_COMPONENT_DEPTH_CAM, TY_STRUCT_CAM_CALIB_DATA, &depth_calib_data, sizeof(depth_calib_data));
             if(status != TY_STATUS_OK) {
                 has_depth_calib_data = false;
@@ -1030,16 +1028,13 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
             } else {
                 has_depth_calib_data = true;
             }
-#endif
+
             break;
         case TY_COMPONENT_RGB_CAM:
             cam_color_intrinsic.resize(9);
             TYGetStruct(handle, m_comp, TY_STRUCT_CAM_INTRINSIC, &cam_color_intrinsic[0], cam_color_intrinsic.size() * sizeof(float));
             TYGetStruct(handle, m_comp, TY_STRUCT_CAM_CALIB_DATA, &cam_color_calib_data, sizeof(cam_color_calib_data));
 
-#ifdef IMAGE_DoUnsitortion_With_OpenCV
-            StreamDistortionMapInit(TY_COMPONENT_RGB_CAM, color_map);
-#else
             status = TYGetStruct(handle, TY_COMPONENT_RGB_CAM, TY_STRUCT_CAM_CALIB_DATA, &color_calib_data, sizeof(color_calib_data));
             if(status != TY_STATUS_OK) {
                 has_color_calib_data = false;
@@ -1047,7 +1042,6 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
             } else {
                 has_color_calib_data = true;
             }
-#endif
             break;
         case TY_COMPONENT_IR_CAM_LEFT:
             cam_leftir_intrinsic.resize(9);
@@ -1099,15 +1093,6 @@ void PercipioDevice::colorStreamReceive(cv::Mat& color, uint64_t& timestamp)
 
     if(color.empty()) return;
     if(VideoStreamPtr) {
-#ifdef IMAGE_DoUnsitortion_With_OpenCV
-        if(color_map.IsValid()) {
-            mapX = cv::Mat(cv::Size(color_map.m_map_width, color_map.m_map_height), CV_32F, color_map.f_map_x.data());
-            mapY = cv::Mat(cv::Size(color_map.m_map_width, color_map.m_map_height), CV_32F, color_map.f_map_y.data());
-            cv::remap(color, targetRGB, mapX, mapY, 0);
-        } else {
-            targetRGB = color;
-        }
-#else
         if(has_color_calib_data) {
             if(color.type() == CV_8UC3) {
                 targetRGB = color.clone();
@@ -1136,7 +1121,6 @@ void PercipioDevice::colorStreamReceive(cv::Mat& color, uint64_t& timestamp)
         } else {
             targetRGB = color;
         }
-#endif
         VideoStreamPtr->ColorInit(targetRGB, &cam_color_intrinsic[0], timestamp);
     }
 }
@@ -1160,15 +1144,6 @@ void PercipioDevice::depthStreamReceive(cv::Mat& depth, uint64_t& timestamp)
 
     if(depth.empty()) return;
     if(VideoStreamPtr) {
-#ifdef IMAGE_DoUnsitortion_With_OpenCV
-        if(depth_map.IsValid()) {
-            mapX = cv::Mat(cv::Size(depth_map.m_map_width, depth_map.m_map_height), CV_32F, depth_map.f_map_x.data());
-            mapY = cv::Mat(cv::Size(depth_map.m_map_width, depth_map.m_map_height), CV_32F, depth_map.f_map_y.data());
-            cv::remap(depth, targetDepth, mapX, mapY, 0);
-        } else {
-            targetDepth = depth;
-        }
-#else
         if(has_depth_calib_data) {
             if(depth.type() == CV_16U) {
                 targetDepth = depth.clone();
@@ -1198,7 +1173,7 @@ void PercipioDevice::depthStreamReceive(cv::Mat& depth, uint64_t& timestamp)
         } else {
             targetDepth = depth;
         }
-#endif
+
         if(topics_d_registration_) {
             cv::Mat out = cv::Mat::zeros(targetDepth.size(), CV_16U);
             TYMapDepthImageToColorCoordinate(&cam_depth_calib_data,
@@ -1222,15 +1197,6 @@ void PercipioDevice::p3dStreamReceive(cv::Mat& depth, uint64_t& timestamp) {
         cv::Mat p3d = cv::Mat(depth.size(), CV_32FC3);
         if(depth.type() == CV_16U) {
             cv::Mat targetDepth;
-#ifdef IMAGE_DoUnsitortion_With_OpenCV            
-            if(depth_map.IsValid()) {
-                cv::Mat mapX = cv::Mat(cv::Size(depth_map.m_map_width, depth_map.m_map_height), CV_32F, depth_map.f_map_x.data());
-                cv::Mat mapY = cv::Mat(cv::Size(depth_map.m_map_width, depth_map.m_map_height), CV_32F, depth_map.f_map_y.data());
-                cv::remap(depth, targetDepth, mapX, mapY, 0);
-            } else {
-                targetDepth = depth;
-            }
-#else
             if(has_depth_calib_data) {
                 if(depth.type() == CV_16U) {
                     targetDepth = depth.clone();
@@ -1259,7 +1225,7 @@ void PercipioDevice::p3dStreamReceive(cv::Mat& depth, uint64_t& timestamp) {
             } else {
                 targetDepth = depth;
             }
-#endif
+            
             if(topics_p3d_) {
                 TYMapDepthImageToPoint3d(&cam_depth_calib_data, targetDepth.cols, targetDepth.rows, (const uint16_t*)targetDepth.data, (TY_VECT_3F*)p3d.data, f_scale_unit);
                 VideoStreamPtr->PointCloudInit(p3d, &cam_depth_intrinsic[0], timestamp);
