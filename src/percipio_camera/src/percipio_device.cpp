@@ -1031,6 +1031,9 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
                 has_depth_calib_data = true;
             }
 
+            depth_stream_distortion_check();
+            //status = TYGetStruct(handle, TY_COMPONENT_DEPTH_CAM, TY_STRUCT_CAM_DISTORTION, )
+            //status = TYHasFeature(handle)
             break;
         case TY_COMPONENT_RGB_CAM:
             cam_color_intrinsic.resize(9);
@@ -1141,37 +1144,32 @@ void PercipioDevice::rightIRStreamReceive(cv::Mat& ir, uint64_t& timestamp)
 
 void PercipioDevice::depthStreamReceive(cv::Mat& depth, uint64_t& timestamp)
 {
-    cv::Mat mapX, mapY;
     cv::Mat targetDepth;
-
     if(depth.empty()) return;
+
+    if(depth.type() != CV_16U) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid depth stream fmt :" << depth.type());
+        return;
+    }
     if(VideoStreamPtr) {
-        if(has_depth_calib_data) {
-            if(depth.type() == CV_16U) {
-                targetDepth = depth.clone();
+        if(b_need_do_depth_undistortion) {
+            targetDepth = depth.clone();
 
-                TY_IMAGE_DATA src;
-                src.width = depth.cols;
-                src.height = depth.rows;
-                src.size = depth.size().area() * 2;
-                src.pixelFormat = TYPixelFormatCoord3D_C16;
-                src.buffer = depth.data;
+            TY_IMAGE_DATA src;
+            src.width = depth.cols;
+            src.height = depth.rows;
+            src.size = depth.size().area() * 2;
+            src.pixelFormat = TYPixelFormatCoord3D_C16;
+            src.buffer = depth.data;
 
-                TY_IMAGE_DATA dst;
-                dst.width = depth.cols;
-                dst.height = depth.rows;
-                dst.size = depth.size().area() * 2;
-                dst.pixelFormat = TYPixelFormatCoord3D_C16;
-                dst.buffer = targetDepth.data;
-                TY_STATUS err = TYUndistortImage(&depth_calib_data, &src, NULL, &dst);
-                if(err) {
-                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth TYUndistortImage ret = :" << err);
-                }
-            } else {
-                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid depth stream fmt :" << depth.type());
-                return;
-            }
-
+            TY_IMAGE_DATA dst;
+            dst.width = depth.cols;
+            dst.height = depth.rows;
+            dst.size = depth.size().area() * 2;
+            dst.pixelFormat = TYPixelFormatCoord3D_C16;
+            dst.buffer = targetDepth.data;
+            TY_STATUS err = TYUndistortImage(&depth_calib_data, &src, NULL, &dst);
+            if(err) RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth TYUndistortImage err:" << err);
         } else {
             targetDepth = depth;
         }
@@ -1199,7 +1197,7 @@ void PercipioDevice::p3dStreamReceive(cv::Mat& depth, uint64_t& timestamp) {
         cv::Mat p3d = cv::Mat(depth.size(), CV_32FC3);
         if(depth.type() == CV_16U) {
             cv::Mat targetDepth;
-            if(has_depth_calib_data) {
+            if(b_need_do_depth_undistortion) {
                 if(depth.type() == CV_16U) {
                     targetDepth = depth.clone();
     
@@ -1333,7 +1331,6 @@ void PercipioDevice::frameDataReceive() {
                     if(frame.image[i].pixelFormat == TYPixelFormatCoord3D_C16) {
                         if(b_depth_spk_filter_en) {
                             DepthSpkFilterPara param = {m_depth_spk_size, m_depth_spk_diff};
-                            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Do depth spk filter :" << m_depth_spk_size << ", " << m_depth_spk_size);
                             TYDepthSpeckleFilter(frame.image[i], param);
                         }
 
@@ -1510,6 +1507,46 @@ bool PercipioDevice::stream_stop()
     frameBuffer[1].clear();
 
     return true;
+}
+
+void PercipioDevice::depth_stream_distortion_check()
+{
+    TY_STATUS ret;
+    TY_ACCESS_MODE _access;
+    switch(gige_version) {
+        case GigeE_2_1:
+        {
+            ret = TYEnumSetString(handle, "SourceSelector", "Range");
+            if(ret) {
+                b_need_do_depth_undistortion = false;
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "TYEnumSetString set SourceSelector to range failed: " << ret);
+                return;
+            }
+
+            ret = TYParamGetAccess(handle, "Distortion", &_access);
+            if(ret) {
+                b_need_do_depth_undistortion = false;
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "TYParamGetAccess get Distortion failed: " << ret);
+                return;
+            }
+
+            if(_access & TY_ACCESS_READABLE) {
+                b_need_do_depth_undistortion = true;
+                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Range  distortion is readable!");
+            } else {
+                b_need_do_depth_undistortion = false;
+                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Range distortion is not readable!");
+            }
+            break;
+        }
+        default:
+        {
+            ret = TYHasFeature(handle, TY_COMPONENT_DEPTH_CAM, TY_STRUCT_CAM_DISTORTION, &b_need_do_depth_undistortion);
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth distortion calib data check ret:" << ret 
+                    << "(" << b_need_do_depth_undistortion << ")");
+        }
+    }
+    return;
 }
 
 void PercipioDevice::send_softtrigger()

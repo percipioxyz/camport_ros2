@@ -139,6 +139,8 @@ class PercipioDevice
 
         void setFrameCallback(FrameCallbackFunction callback);
 
+        void depth_stream_distortion_check();
+
         void topics_depth_stream_enable(bool enable);
         void topics_point_cloud_enable(bool enable);
         void topics_color_point_cloud_enable(bool enable);
@@ -186,6 +188,7 @@ class PercipioDevice
 
         FrameCallbackFunction  _callback;
 
+        bool  b_need_do_depth_undistortion = false;
         bool  has_depth_calib_data = false;
         bool  has_color_calib_data = false;
         TY_CAMERA_CALIB_INFO depth_calib_data;
