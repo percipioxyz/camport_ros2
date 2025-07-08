@@ -12,6 +12,8 @@
 
 #include "TYParameter.h"
 #include "DepthStreamProc.h"
+#include "percipio_depth_algorithm.h"
+
 #include "percipio_video_mode.h"
 
 namespace percipio_camera {
@@ -141,6 +143,9 @@ class PercipioDevice
         void topics_point_cloud_enable(bool enable);
         void topics_color_point_cloud_enable(bool enable);
         void topics_depth_registration_enable(bool enable);
+
+        void depth_speckle_filter_init(bool enable, int spec_size, int spec_diff);
+        void dpeth_time_domain_filter_init(bool enable, int number);
         
         bool load_default_parameter();
 
@@ -191,7 +196,15 @@ class PercipioDevice
         bool topics_color_p3d_ = false;
         bool topics_d_registration_ = false;
 
-        std::shared_ptr<std::thread> device_reconnect_thread = nullptr;
+        bool b_depth_spk_filter_en = false;
+        int  m_depth_spk_size = 150;
+        int  m_depth_spk_diff = 64;
+
+        bool b_depth_time_domain_en = false;
+        int  m_depth_time_domain_frame_num = 3;
+        std::unique_ptr<DepthTimeDomainMgr> DepthDomainTimeFilterMgrPtr;
+
+        std::unique_ptr<std::thread> device_reconnect_thread = nullptr;
         void device_offline_reconnect();
 
         float f_scale_unit = 1.f;
@@ -203,8 +216,8 @@ class PercipioDevice
         std::vector<float> cam_leftir_intrinsic;
         std::vector<float> cam_rightir_intrinsic;
 
-        std::shared_ptr<std::thread> frame_recive_thread_ = nullptr;
-        std::shared_ptr<VideoStream> VideoStreamPtr = nullptr;
+        std::unique_ptr<std::thread> frame_recive_thread_ = nullptr;
+        std::unique_ptr<VideoStream> VideoStreamPtr = nullptr;
         std::vector<unsigned char> frameBuffer[2];
         void frameDataReceive();
 

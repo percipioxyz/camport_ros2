@@ -139,6 +139,15 @@ void PercipioCameraNode::getParameters() {
     //registration flag
     setAndGetNodeParameter(depth_registration_enable, "depth_registration_enable", false);
 
+    //depth spec filter
+    setAndGetNodeParameter(depth_speckle_filter_enable, "depth_speckle_filter", false);
+    setAndGetNodeParameter(max_speckle_size, "max_speckle_size", 150);
+    setAndGetNodeParameter(max_speckle_diff, "max_speckle_diff", 64);
+
+    //depth time domain filter
+    setAndGetNodeParameter(depth_time_domain_filter_enable, "depth_time_domain_filter", false);
+    setAndGetNodeParameter(depth_time_domain_num, "depth_time_domain_num", 3);
+
     //point cloud qos setting
     setAndGetNodeParameter<std::string>(point_cloud_qos, "point_cloud_qos", "default");
 
@@ -242,6 +251,9 @@ void PercipioCameraNode::setupDevices() {
     device_ptr->topics_point_cloud_enable(point_cloud_enable);
     device_ptr->topics_color_point_cloud_enable(color_point_cloud_enable);
     device_ptr->topics_depth_registration_enable(depth_registration_enable);
+
+    device_ptr->depth_speckle_filter_init(depth_speckle_filter_enable, max_speckle_size, max_speckle_diff);
+    device_ptr->dpeth_time_domain_filter_init(depth_time_domain_filter_enable, depth_time_domain_num);
 
     if(stream_enable[DEPTH_STREAM])
         f_depth_scale = device_ptr->getDepthValueScale();

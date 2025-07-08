@@ -91,6 +91,8 @@ PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
         strFaceId = faceId;
         strDeviceId = deviceId;
     }
+
+    DepthDomainTimeFilterMgrPtr = std::make_unique<DepthTimeDomainMgr>(m_depth_time_domain_frame_num);
 }
 
 //设备离校重连
@@ -554,7 +556,7 @@ void PercipioDevice::enable_offline_reconnect(const bool en)
         return;
     if(device_reconnect_thread)
         return;
-    device_reconnect_thread = std::make_shared<std::thread>([this]() { device_offline_reconnect(); });
+    device_reconnect_thread = std::make_unique<std::thread>([this]() { device_offline_reconnect(); });
 }
 
 //laser亮度
@@ -1056,7 +1058,7 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
     }
 
     if(!reconnect) m_streams.push_back({idx, resolution, format});
-    VideoStreamPtr = std::make_shared<VideoStream>();
+    VideoStreamPtr = std::make_unique<VideoStream>();
     return true;
 }
 
@@ -1329,6 +1331,19 @@ void PercipioDevice::frameDataReceive() {
                 if (frame.image[i].componentID == TY_COMPONENT_DEPTH_CAM){
                     cv::Mat depth;
                     if(frame.image[i].pixelFormat == TYPixelFormatCoord3D_C16) {
+                        if(b_depth_spk_filter_en) {
+                            DepthSpkFilterPara param = {m_depth_spk_size, m_depth_spk_diff};
+                            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Do depth spk filter :" << m_depth_spk_size << ", " << m_depth_spk_size);
+                            TYDepthSpeckleFilter(frame.image[i], param);
+                        }
+
+                        if(b_depth_time_domain_en) {
+                            DepthDomainTimeFilterMgrPtr->add_frame(frame.image[i]);
+                            if(!DepthDomainTimeFilterMgrPtr->do_time_domain_process(frame.image[i])) {
+                                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Do Time-domain filter, drop frame!");
+                                continue;
+                            }
+                        }
                         depth = cv::Mat(frame.image[i].height, frame.image[i].width, CV_16U, frame.image[i].buffer);
                         p3dStreamReceive(depth, frame.image[i].timestamp);
                     } else if((uint32_t)frame.image[i].pixelFormat == TYPixelFormatCoord3D_ABC16) {
@@ -1467,7 +1482,7 @@ bool PercipioDevice::stream_start()
     color_stream_aec_roi_init();
 
     is_running_.store(true);
-    frame_recive_thread_ = std::make_shared<std::thread>([this]() { frameDataReceive(); });
+    frame_recive_thread_ = std::make_unique<std::thread>([this]() { frameDataReceive(); });
 
     return true;
 }
@@ -1533,6 +1548,20 @@ void PercipioDevice::topics_color_point_cloud_enable(bool enable)
 void PercipioDevice::topics_depth_registration_enable(bool enable)
 {
     topics_d_registration_= enable;
+}
+
+void PercipioDevice::depth_speckle_filter_init(bool enable, int spec_size, int spec_diff)
+{
+    b_depth_spk_filter_en = enable;
+    m_depth_spk_size = spec_size;
+    m_depth_spk_diff = spec_diff;
+}
+
+void PercipioDevice::dpeth_time_domain_filter_init(bool enable, int number)
+{
+    b_depth_time_domain_en = enable;
+    m_depth_time_domain_frame_num = number;
+    DepthDomainTimeFilterMgrPtr->reset(m_depth_time_domain_frame_num);
 }
 
 }

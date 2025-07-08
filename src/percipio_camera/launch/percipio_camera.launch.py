@@ -49,6 +49,18 @@ def generate_launch_description():
         # Map depth image to color coordinate
         DeclareLaunchArgument('depth_registration_enable', default_value='true'),
 
+        #Speckle filtering enable/disable switch
+        DeclareLaunchArgument('depth_speckle_filter', default_value='false'),
+        #Blob size smaller than this will be removed
+        DeclareLaunchArgument('max_speckle_size', default_value='150'),
+        #Maximum difference between neighbor disparity pixels
+        DeclareLaunchArgument('max_speckle_diff', default_value='64'),
+  
+        #depth stream Time-domain filtering enable/disable switch
+        DeclareLaunchArgument('depth_time_domain_filter', default_value='false'),
+        #Time-domain filtering frame count：2 - 10
+        DeclareLaunchArgument('depth_time_domain_num', default_value='3'),
+
         # Enable point cloud stream output
         DeclareLaunchArgument('point_cloud_enable', default_value='false'),
 

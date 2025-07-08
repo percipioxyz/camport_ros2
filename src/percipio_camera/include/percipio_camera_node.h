@@ -98,6 +98,13 @@ class PercipioCameraNode {
 
         bool depth_registration_enable = false;
 
+        bool depth_speckle_filter_enable = false;
+        int  max_speckle_size = 150;
+        int  max_speckle_diff = 64;
+
+        bool depth_time_domain_filter_enable = false;
+        int  depth_time_domain_num = 3;
+
         int m_laser_power = -1;
 
         int roi[4];

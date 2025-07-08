@@ -62,6 +62,7 @@ set(SOURCE_FILES
   src/TYThread.cpp
   src/DepthInpainter.cpp
   src/DepthStreamProc.cpp
+  src/percipio_depth_algorithm.cpp
   src/ImageSpeckleFilter.cpp
   src/MatViewer.cpp
   src/huffman.cpp
