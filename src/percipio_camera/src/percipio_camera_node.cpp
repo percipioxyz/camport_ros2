@@ -367,7 +367,7 @@ void PercipioCameraNode::publishColorFrame(percipio_camera::VideoStream& stream)
     image_info.height = color.rows;
     camera_info_publishers_[COLOR_STREAM]->publish(image_info);
 
-    auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), sensor_msgs::image_encodings::TYPE_8UC3, color).toImageMsg();
+    auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), sensor_msgs::image_encodings::RGB8, color).toImageMsg();
     image_msg->header.stamp = HWTimeUsToROSTime(stream.getColorStramTimestamp());
     image_msg->is_bigendian = false;
     image_msg->step = 3 * color.cols;
