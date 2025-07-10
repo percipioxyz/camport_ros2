@@ -464,7 +464,7 @@ void PercipioCameraNode::publishDepthFrame(percipio_camera::VideoStream& stream)
     if(image.empty()) {
         return;
     }
-            
+
     auto image_info = stream.getDepthInfo();
     image_info.header.stamp = HWTimeUsToROSTime(stream.getDepthStramTimestamp());
     image_info.header.frame_id = optical_frame_id[DEPTH_STREAM];
@@ -472,12 +472,21 @@ void PercipioCameraNode::publishDepthFrame(percipio_camera::VideoStream& stream)
     image_info.height = image.rows;
     camera_info_publishers_[DEPTH_STREAM]->publish(image_info);
 
-    auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), sensor_msgs::image_encodings::TYPE_16UC1, image).toImageMsg();
-    image_msg->header.stamp = HWTimeUsToROSTime(stream.getDepthStramTimestamp());
-    image_msg->is_bigendian = false;
-    image_msg->step = 2 * image.cols;
-    image_msg->header.frame_id = optical_frame_id[DEPTH_STREAM];
-    image_publishers_[DEPTH_STREAM].publish(std::move(image_msg));
+    if(image.type() == CV_16U) {
+        auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), sensor_msgs::image_encodings::TYPE_16UC1, image).toImageMsg();
+        image_msg->header.stamp = HWTimeUsToROSTime(stream.getDepthStramTimestamp());
+        image_msg->is_bigendian = false;
+        image_msg->step = 2 * image.cols;
+        image_msg->header.frame_id = optical_frame_id[DEPTH_STREAM];
+        image_publishers_[DEPTH_STREAM].publish(std::move(image_msg));
+    } else if(image.type() == CV_16SC3) {
+        auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), sensor_msgs::image_encodings::TYPE_16SC3, image).toImageMsg();
+        image_msg->header.stamp = HWTimeUsToROSTime(stream.getDepthStramTimestamp());
+        image_msg->is_bigendian = false;
+        image_msg->step = 6 * image.cols;
+        image_msg->header.frame_id = optical_frame_id[DEPTH_STREAM];
+        image_publishers_[DEPTH_STREAM].publish(std::move(image_msg));
+    }
 }
 
 void PercipioCameraNode::publishColorPointCloud(percipio_camera::VideoStream& stream)

@@ -28,7 +28,7 @@ def generate_launch_description():
         # Enable rgb stream output
         DeclareLaunchArgument('color_enable', default_value='true'),
         DeclareLaunchArgument('color_resolution', default_value='"1280x960"'),
-        #format list:yuv / jpeg / bayer / mono / depth16/xyz48...
+        #format list:yuv / jpeg / bayer / mono...
         #DeclareLaunchArgument('color_format', default_value='"yuv"'),
 
         
@@ -43,6 +43,10 @@ def generate_launch_description():
         # Enable depth stream output
         DeclareLaunchArgument('depth_enable', default_value='true'),
         DeclareLaunchArgument('depth_resolution', default_value='"640x480"'),
+
+        #format list:depth16/xyz48...
+        #DeclareLaunchArgument('depth_format', default_value='"xyz48"'),
+
         DeclareLaunchArgument('depth_qos', default_value='default'),
         DeclareLaunchArgument('depth_camera_info_qos', default_value='default'),
 

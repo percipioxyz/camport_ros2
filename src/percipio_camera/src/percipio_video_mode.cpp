@@ -1,4 +1,5 @@
 #include "percipio_video_mode.h"
+#include "percipio_device.h"
 
 namespace percipio_camera {
 void VideoStream::reset()
@@ -10,7 +11,7 @@ void VideoStream::reset()
     _p3d.release();
 }
 
-bool VideoStream::DepthInit(const cv::Mat& depth, const float* intr, const uint64_t& timestamp)
+bool VideoStream::DepthInit(const cv::Mat& depth, image_intrinsic& intr, const uint64_t& timestamp)
 {
     if(depth.empty()) {
         return false;
@@ -18,11 +19,13 @@ bool VideoStream::DepthInit(const cv::Mat& depth, const float* intr, const uint6
 
     _depth = depth.clone();
     _depth_timestamp = timestamp;
-    _depth_cam_info = convertToCameraInfo(*(TY_CAMERA_INTRINSIC*)intr, depth.cols, depth.rows);
+    _depth_cam_info = convertToCameraInfo(intr.resize(depth.cols, depth.rows).data(), depth.cols, depth.rows);
+
+    
     return true;
 }
 
-bool VideoStream::ColorInit(const cv::Mat& color, const float* intr, const uint64_t& timestamp)
+bool VideoStream::ColorInit(const cv::Mat& color, image_intrinsic& intr, const uint64_t& timestamp)
 {
     if(color.empty()) {
         return false;
@@ -30,11 +33,11 @@ bool VideoStream::ColorInit(const cv::Mat& color, const float* intr, const uint6
 
     _color = color.clone();
     _color_timestamp = timestamp;
-    _color_cam_info = convertToCameraInfo(*(TY_CAMERA_INTRINSIC*)intr, color.cols, color.rows);
+    _color_cam_info = convertToCameraInfo(intr.resize(color.cols, color.rows).data(), color.cols, color.rows);
     return true;
 }
 
-bool VideoStream::IRLeftInit(const cv::Mat& ir, const float* intr, const uint64_t& timestamp)
+bool VideoStream::IRLeftInit(const cv::Mat& ir, image_intrinsic& intr, const uint64_t& timestamp)
 {
     if(ir.empty()) {
         return false;
@@ -42,11 +45,11 @@ bool VideoStream::IRLeftInit(const cv::Mat& ir, const float* intr, const uint64_
 
     _left_ir = ir.clone();
     _lir_timestamp = timestamp;
-    _lir_cam_info = convertToCameraInfo(*(TY_CAMERA_INTRINSIC*)intr, ir.cols, ir.rows);
+    _lir_cam_info = convertToCameraInfo(intr.resize(ir.cols, ir.rows).data(), ir.cols, ir.rows);
     return true;
 }
 
-bool VideoStream::IRRightInit(const cv::Mat& ir, const float* intr, const uint64_t& timestamp)
+bool VideoStream::IRRightInit(const cv::Mat& ir, image_intrinsic& intr, const uint64_t& timestamp)
 {
     if(ir.empty()) {
         return false;
@@ -54,11 +57,11 @@ bool VideoStream::IRRightInit(const cv::Mat& ir, const float* intr, const uint64
 
     _right_ir = ir.clone();
     _rir_timestamp = timestamp;
-    _rir_cam_info = convertToCameraInfo(*(TY_CAMERA_INTRINSIC*)intr, ir.cols, ir.rows);
+    _rir_cam_info = convertToCameraInfo(intr.resize(ir.cols, ir.rows).data(), ir.cols, ir.rows);
     return true;
 }
 
-bool VideoStream::PointCloudInit(const cv::Mat& p3d, const float* intr, const uint64_t& timestamp)
+bool VideoStream::PointCloudInit(const cv::Mat& p3d, image_intrinsic& intr, const uint64_t& timestamp)
 {
     if(p3d.empty()) {
         return false;
@@ -71,7 +74,7 @@ bool VideoStream::PointCloudInit(const cv::Mat& p3d, const float* intr, const ui
     
     _p3d = p3d.clone();
     _p3d_timestamp = timestamp;
-    _p3d_cam_info = convertToCameraInfo(*(TY_CAMERA_INTRINSIC*)intr, p3d.cols, p3d.rows);
+    _p3d_cam_info = convertToCameraInfo(intr.resize(p3d.cols, p3d.rows).data(), p3d.cols, p3d.rows);
     return true;
 }
 

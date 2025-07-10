@@ -10,17 +10,18 @@
 
 namespace percipio_camera {
 
+class image_intrinsic;
 class VideoStream {
     public: 
         VideoStream() {}
         ~VideoStream() {}
 
         void reset();
-        bool DepthInit(const cv::Mat& depth, const float* intr, const uint64_t& timestamp);
-        bool ColorInit(const cv::Mat& color, const float* intr, const uint64_t& timestamp);
-        bool IRLeftInit(const cv::Mat& ir, const float* intr, const uint64_t& timestamp);
-        bool IRRightInit(const cv::Mat& ir, const float* intr, const uint64_t& timestamp);
-        bool PointCloudInit(const cv::Mat& p3d, const float* intr, const uint64_t& timestamp);
+        bool DepthInit(const cv::Mat& depth, image_intrinsic& intr, const uint64_t& timestamp);
+        bool ColorInit(const cv::Mat& color, image_intrinsic& intr, const uint64_t& timestamp);
+        bool IRLeftInit(const cv::Mat& ir, image_intrinsic& intr, const uint64_t& timestamp);
+        bool IRRightInit(const cv::Mat& ir, image_intrinsic& intr, const uint64_t& timestamp);
+        bool PointCloudInit(const cv::Mat& p3d, image_intrinsic& intr, const uint64_t& timestamp);
 
                 
         //////////////////////////////////////////////

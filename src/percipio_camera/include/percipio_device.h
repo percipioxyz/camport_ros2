@@ -61,6 +61,35 @@ struct percipio_distortion_map_info
         }
 };
 
+class image_intrinsic
+{
+    public:
+        image_intrinsic() {}
+        image_intrinsic(const int width, const int height, const float fx, const float fy, const float cx, const float cy);
+        image_intrinsic(const int width, const int height, const TY_CAMERA_INTRINSIC& intr);
+        ~image_intrinsic();
+
+        int width()  { return m_width; }
+        int height() { return m_height; }
+        float fx() { return intrinsic[0]; }
+        float cx() { return intrinsic[2]; }
+        float fy() { return intrinsic[4]; }
+        float cy() { return intrinsic[5]; }
+ 
+        image_intrinsic resize(const float f_scale_x, const float f_scale_y);
+        image_intrinsic resize(const int width, const int height);
+
+        TY_CAMERA_INTRINSIC data();
+    private:
+        int32_t m_width;
+        int32_t m_height;
+
+        /// | fx|  0| cx|
+        /// |  0| fy| cy|
+        /// |  0|  0|  1|
+        float intrinsic[9];
+};
+
 class PercipioDevice;
 typedef std::pair<percipio_stream_type, int> percipio_stream_index_pair;
 typedef boost::function<void(VideoStream&)> FrameCallbackFunction;
@@ -191,8 +220,8 @@ class PercipioDevice
         bool  b_need_do_depth_undistortion = false;
         bool  has_depth_calib_data = false;
         bool  has_color_calib_data = false;
-        TY_CAMERA_CALIB_INFO depth_calib_data;
-        TY_CAMERA_CALIB_INFO color_calib_data;
+        //TY_CAMERA_CALIB_INFO depth_calib_data;
+        //TY_CAMERA_CALIB_INFO color_calib_data;
 
         bool topics_depth_ = false;
         bool topics_p3d_ = false;
@@ -214,10 +243,10 @@ class PercipioDevice
         TY_CAMERA_CALIB_INFO cam_depth_calib_data;
         TY_CAMERA_CALIB_INFO cam_color_calib_data;
 
-        std::vector<float> cam_depth_intrinsic;
-        std::vector<float> cam_color_intrinsic;
-        std::vector<float> cam_leftir_intrinsic;
-        std::vector<float> cam_rightir_intrinsic;
+        image_intrinsic cam_depth_intrinsic;
+        image_intrinsic cam_color_intrinsic;
+        image_intrinsic cam_leftir_intrinsic;
+        image_intrinsic cam_rightir_intrinsic;
 
         std::unique_ptr<std::thread> frame_recive_thread_ = nullptr;
         std::unique_ptr<VideoStream> VideoStreamPtr = nullptr;
@@ -233,11 +262,11 @@ class PercipioDevice
 
         void StreamDistortionMapInit(TY_COMPONENT_ID comp, percipio_distortion_map_info& map);
 
-        void colorStreamReceive(cv::Mat& color, uint64_t& timestamp);
-        void leftIRStreamReceive(cv::Mat& ir,   uint64_t& timestamp);
-        void rightIRStreamReceive(cv::Mat& ir,  uint64_t& timestamp);
-        void depthStreamReceive(cv::Mat& depth, uint64_t& timestamp);
-        void p3dStreamReceive(cv::Mat& depth,   uint64_t& timestamp);
+        void colorStreamReceive(const cv::Mat& color, uint64_t& timestamp);
+        void leftIRStreamReceive(const cv::Mat& ir,   uint64_t& timestamp);
+        void rightIRStreamReceive(const cv::Mat& ir,  uint64_t& timestamp);
+        void depthStreamReceive(const cv::Mat& depth, uint64_t& timestamp);
+        void p3dStreamReceive(const cv::Mat& depth,   uint64_t& timestamp);
 
 };
 }

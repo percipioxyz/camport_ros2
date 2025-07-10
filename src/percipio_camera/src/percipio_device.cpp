@@ -80,6 +80,65 @@ static uint32_t StreamConvertComponent(const percipio_stream_index_pair& idx)
     }
 }
 
+image_intrinsic::image_intrinsic(const int width, const int height, const float fx, const float fy, const float cx, const float cy)
+{
+    m_width = width;
+    m_height = height;
+
+    /// | fx|  0| cx|
+    /// |  0| fy| cy|
+    /// |  0|  0|  1|
+    intrinsic[0] = fx;
+    intrinsic[1] = 0;
+    intrinsic[2] = cx;
+    
+    intrinsic[3] = 0;
+    intrinsic[4] = fy;
+    intrinsic[5] = cy;
+
+    intrinsic[6] = 0;
+    intrinsic[7] = 0;
+    intrinsic[8] = 1;
+}
+
+image_intrinsic::image_intrinsic(const int width, const int height, const TY_CAMERA_INTRINSIC& intr)
+{
+    m_width = width;
+    m_height = height;
+
+    memcpy(intrinsic, intr.data, sizeof(intrinsic));
+}
+
+image_intrinsic::~image_intrinsic()
+{
+
+}
+
+image_intrinsic image_intrinsic::resize(const float f_scale_x, const float f_scale_y)
+{
+    return image_intrinsic(
+                width()  * f_scale_x, 
+                height() * f_scale_y, 
+                fx() * f_scale_x, 
+                fy() * f_scale_y, 
+                cx() * f_scale_x, 
+                cy() * f_scale_y);
+}
+
+image_intrinsic image_intrinsic::resize(const int width, const int height)
+{
+    float f_scale_x = 1.f * width / m_width;
+    float f_scale_y = 1.f * height / m_height;
+    return resize(f_scale_x, f_scale_y);
+}
+
+TY_CAMERA_INTRINSIC image_intrinsic::data()
+{
+    TY_CAMERA_INTRINSIC intr;
+    memcpy(intr.data, intrinsic, sizeof(intrinsic));
+    return intr;
+}
+
 //percipio camera 初始化，打开相机,配置参数,使能数据流
 PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
     : alive(false),
@@ -744,6 +803,7 @@ std::string PercipioDevice::parseStreamFormat(const std::string& format)
     if(fmt.find("depth") != std::string::npos) return "depth16";
     if(fmt.find("coord3d_c16") != std::string::npos) return "depth16";
     
+    if(fmt.find("xyz48") != std::string::npos) return "xyz48";
     if(fmt.find("coord3d_abc16") != std::string::npos) return "xyz48";
 
     if(fmt.find("coord3d_abc32f") != std::string::npos) return "point3d";
@@ -1016,46 +1076,45 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
     }
 
     switch (m_comp) {
-        case TY_COMPONENT_DEPTH_CAM:
-            cam_depth_intrinsic.resize(9);
-            TYGetStruct(handle, m_comp, TY_STRUCT_CAM_INTRINSIC, &cam_depth_intrinsic[0], cam_depth_intrinsic.size() * sizeof(float));
+        case TY_COMPONENT_DEPTH_CAM: {
             TYGetFloat(handle, m_comp, TY_FLOAT_SCALE_UNIT, &f_scale_unit);
-            TYGetStruct(handle, m_comp, TY_STRUCT_CAM_CALIB_DATA, &cam_depth_calib_data, sizeof(cam_depth_calib_data));
             RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth stream scale unit: " << f_scale_unit);
 
-            status = TYGetStruct(handle, TY_COMPONENT_DEPTH_CAM, TY_STRUCT_CAM_CALIB_DATA, &depth_calib_data, sizeof(depth_calib_data));
+            status = TYGetStruct(handle, TY_COMPONENT_DEPTH_CAM, TY_STRUCT_CAM_CALIB_DATA, &cam_depth_calib_data, sizeof(cam_depth_calib_data));
             if(status != TY_STATUS_OK) {
                 has_depth_calib_data = false;
                 RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), desc << ": Got stream calib data error: " << status);
             } else {
                 has_depth_calib_data = true;
+                cam_depth_intrinsic = image_intrinsic(cam_depth_calib_data.intrinsicWidth, cam_depth_calib_data.intrinsicHeight, cam_depth_calib_data.intrinsic);
             }
 
             depth_stream_distortion_check();
-            //status = TYGetStruct(handle, TY_COMPONENT_DEPTH_CAM, TY_STRUCT_CAM_DISTORTION, )
-            //status = TYHasFeature(handle)
             break;
-        case TY_COMPONENT_RGB_CAM:
-            cam_color_intrinsic.resize(9);
-            TYGetStruct(handle, m_comp, TY_STRUCT_CAM_INTRINSIC, &cam_color_intrinsic[0], cam_color_intrinsic.size() * sizeof(float));
-            TYGetStruct(handle, m_comp, TY_STRUCT_CAM_CALIB_DATA, &cam_color_calib_data, sizeof(cam_color_calib_data));
-
-            status = TYGetStruct(handle, TY_COMPONENT_RGB_CAM, TY_STRUCT_CAM_CALIB_DATA, &color_calib_data, sizeof(color_calib_data));
+        }
+        case TY_COMPONENT_RGB_CAM: {
+            status = TYGetStruct(handle, TY_COMPONENT_RGB_CAM, TY_STRUCT_CAM_CALIB_DATA, &cam_color_calib_data, sizeof(cam_color_calib_data));
             if(status != TY_STATUS_OK) {
                 has_color_calib_data = false;
                 RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), desc << ": Got stream calib data error:" << status);
             } else {
                 has_color_calib_data = true;
+                cam_color_intrinsic = image_intrinsic(cam_color_calib_data.intrinsicWidth, cam_color_calib_data.intrinsicHeight, cam_color_calib_data.intrinsic);
             }
             break;
-        case TY_COMPONENT_IR_CAM_LEFT:
-            cam_leftir_intrinsic.resize(9);
-            TYGetStruct(handle, m_comp, TY_STRUCT_CAM_INTRINSIC, &cam_leftir_intrinsic[0], cam_leftir_intrinsic.size() * sizeof(float));
+        }
+        case TY_COMPONENT_IR_CAM_LEFT: {
+            TY_CAMERA_CALIB_INFO calib_data;
+            TYGetStruct(handle, m_comp, TY_STRUCT_CAM_CALIB_DATA, &calib_data, sizeof(calib_data));
+            cam_leftir_intrinsic = image_intrinsic(calib_data.intrinsicWidth, calib_data.intrinsicHeight, calib_data.intrinsic);
             break;
-        case TY_COMPONENT_IR_CAM_RIGHT:
-            cam_rightir_intrinsic.resize(9);
-            TYGetStruct(handle, m_comp, TY_STRUCT_CAM_INTRINSIC, &cam_rightir_intrinsic[0], cam_rightir_intrinsic.size() * sizeof(float));
+        }
+        case TY_COMPONENT_IR_CAM_RIGHT: {
+            TY_CAMERA_CALIB_INFO calib_data;
+            TYGetStruct(handle, m_comp, TY_STRUCT_CAM_CALIB_DATA,&calib_data, sizeof(calib_data));
+            cam_rightir_intrinsic = image_intrinsic(calib_data.intrinsicWidth, calib_data.intrinsicHeight, calib_data.intrinsic);
             break;
+        }
         default:
             break;
     }
@@ -1091,7 +1150,7 @@ bool PercipioDevice::stream_close(const percipio_stream_index_pair& idx)
 }
 
 //
-void PercipioDevice::colorStreamReceive(cv::Mat& color, uint64_t& timestamp)
+void PercipioDevice::colorStreamReceive(const cv::Mat& color, uint64_t& timestamp)
 {
     cv::Mat mapX, mapY;
     cv::Mat targetRGB;
@@ -1115,7 +1174,7 @@ void PercipioDevice::colorStreamReceive(cv::Mat& color, uint64_t& timestamp)
                 dst.size = color.size().area() * 3;;
                 dst.pixelFormat = TYPixelFormatBGR8;
                 dst.buffer = targetRGB.data;
-                TY_STATUS err = TYUndistortImage(&color_calib_data, &src, NULL, &dst);
+                TY_STATUS err = TYUndistortImage(&cam_color_calib_data, &src, NULL, &dst);
                 if(err) {
                     RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Color TYUndistortImage ret = :" << err);
                 }
@@ -1126,32 +1185,34 @@ void PercipioDevice::colorStreamReceive(cv::Mat& color, uint64_t& timestamp)
         } else {
             targetRGB = color;
         }
-        VideoStreamPtr->ColorInit(targetRGB, &cam_color_intrinsic[0], timestamp);
+        VideoStreamPtr->ColorInit(targetRGB, cam_color_intrinsic, timestamp);
     }
 }
 
-void PercipioDevice::leftIRStreamReceive(cv::Mat& ir, uint64_t& timestamp)
+void PercipioDevice::leftIRStreamReceive(const cv::Mat& ir, uint64_t& timestamp)
 {
     if(ir.empty()) return;
-    if(VideoStreamPtr) VideoStreamPtr->IRLeftInit(ir, &cam_leftir_intrinsic[0], timestamp);
+    if(VideoStreamPtr) VideoStreamPtr->IRLeftInit(ir, cam_leftir_intrinsic, timestamp);
 }
 
-void PercipioDevice::rightIRStreamReceive(cv::Mat& ir, uint64_t& timestamp)
+void PercipioDevice::rightIRStreamReceive(const cv::Mat& ir, uint64_t& timestamp)
 {
     if(ir.empty()) return;
-    if(VideoStreamPtr) VideoStreamPtr->IRRightInit(ir, &cam_rightir_intrinsic[0], timestamp);
+    if(VideoStreamPtr) VideoStreamPtr->IRRightInit(ir, cam_rightir_intrinsic, timestamp);
 }
 
-void PercipioDevice::depthStreamReceive(cv::Mat& depth, uint64_t& timestamp)
+void PercipioDevice::depthStreamReceive(const cv::Mat& depth, uint64_t& timestamp)
 {
     cv::Mat targetDepth;
     if(depth.empty()) return;
 
-    if(depth.type() != CV_16U) {
+    if(depth.type() != CV_16U && depth.type() != CV_16SC3) {
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid depth stream fmt :" << depth.type());
         return;
     }
-    if(VideoStreamPtr) {
+    if(!VideoStreamPtr) return;
+
+    if(depth.type() == CV_16U) {
         if(b_need_do_depth_undistortion) {
             targetDepth = depth.clone();
 
@@ -1168,7 +1229,8 @@ void PercipioDevice::depthStreamReceive(cv::Mat& depth, uint64_t& timestamp)
             dst.size = depth.size().area() * 2;
             dst.pixelFormat = TYPixelFormatCoord3D_C16;
             dst.buffer = targetDepth.data;
-            TY_STATUS err = TYUndistortImage(&depth_calib_data, &src, NULL, &dst);
+            
+            TY_STATUS err = TYUndistortImage(&cam_depth_calib_data, &src, NULL, &dst);
             if(err) RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth TYUndistortImage err:" << err);
         } else {
             targetDepth = depth;
@@ -1181,78 +1243,112 @@ void PercipioDevice::depthStreamReceive(cv::Mat& depth, uint64_t& timestamp)
                 &cam_color_calib_data,
                 out.cols, out.rows, out.ptr<uint16_t>(), f_scale_unit);
                 targetDepth = out.clone();
-            VideoStreamPtr->DepthInit(targetDepth, &cam_color_intrinsic[0], timestamp);
+            
+            VideoStreamPtr->DepthInit(targetDepth, cam_color_intrinsic, timestamp);
         } else if(topics_depth_) {
-            VideoStreamPtr->DepthInit(targetDepth, &cam_depth_intrinsic[0],timestamp);
+            VideoStreamPtr->DepthInit(targetDepth, cam_depth_intrinsic, timestamp);
         }
-    }
+    } else if(depth.type() == CV_16SC3) {
+        if(topics_d_registration_) {
+            cv::Point3f point(
+                    std::numeric_limits<float>::quiet_NaN(),
+                    std::numeric_limits<float>::quiet_NaN(),
+                    std::numeric_limits<float>::quiet_NaN()
+                );
+            cv::Mat p3d = cv::Mat(depth.size(), CV_32FC3);
+            for(int i = 0; i < depth.rows; i++) {
+                for(int j = 0; j < depth.cols; j++) {
+                    if(depth.at<cv::Vec3s>(i, j)[2]) {
+                        p3d.at<cv::Vec3f>(i, j) = static_cast<cv::Vec3f>(depth.at<cv::Vec3s>(i, j));
+                    } else {
+                        p3d.at<cv::Vec3f>(i, j) = point;
+                    }
+                }
+            }
+
+            TY_CAMERA_EXTRINSIC extri_inv;
+            TYInvertExtrinsic(&cam_color_calib_data.extrinsic, &extri_inv);
+            TYMapPoint3dToPoint3d(&extri_inv, (TY_VECT_3F*)p3d.data, p3d.cols * p3d.rows, (TY_VECT_3F*)p3d.data);
+
+            targetDepth = cv::Mat::zeros(depth.size(), CV_16U);
+            TYMapPoint3dToDepthImage(&cam_color_calib_data, (const TY_VECT_3F*)(p3d.data), p3d.cols * p3d.rows, p3d.cols, p3d.rows, (uint16_t*)(targetDepth.data));
+            VideoStreamPtr->DepthInit(targetDepth, cam_color_intrinsic,timestamp);
+        } else if(topics_depth_) {
+            targetDepth = depth;
+            VideoStreamPtr->DepthInit(targetDepth, cam_depth_intrinsic, timestamp);
+        }
+    } else 
+        ;
+
     return;
 }
 
-void PercipioDevice::p3dStreamReceive(cv::Mat& depth, uint64_t& timestamp) {
+void PercipioDevice::p3dStreamReceive(const cv::Mat& depth, uint64_t& timestamp) {
     if(depth.empty()) return;
     if(!topics_p3d_  && !topics_color_p3d_) return;
+    if(!VideoStreamPtr) return;
 
-    if(VideoStreamPtr) {
-        cv::Mat p3d = cv::Mat(depth.size(), CV_32FC3);
-        if(depth.type() == CV_16U) {
-            cv::Mat targetDepth;
-            if(b_need_do_depth_undistortion) {
-                if(depth.type() == CV_16U) {
-                    targetDepth = depth.clone();
+    cv::Mat p3d = cv::Mat(depth.size(), CV_32FC3);
+    if(depth.type() == CV_16U) {
+        cv::Mat targetDepth;
+        if(b_need_do_depth_undistortion) {
+            targetDepth = depth.clone();
     
-                    TY_IMAGE_DATA src;
-                    src.width = depth.cols;
-                    src.height = depth.rows;
-                    src.size = depth.size().area() * 2;
-                    src.pixelFormat = TYPixelFormatCoord3D_C16;
-                    src.buffer = depth.data;
+            TY_IMAGE_DATA src;
+            src.width = depth.cols;
+            src.height = depth.rows;
+            src.size = depth.size().area() * 2;
+            src.pixelFormat = TYPixelFormatCoord3D_C16;
+            src.buffer = depth.data;
     
-                    TY_IMAGE_DATA dst;
-                    dst.width = depth.cols;
-                    dst.height = depth.rows;
-                    dst.size = depth.size().area() * 2;
-                    dst.pixelFormat = TYPixelFormatCoord3D_C16;
-                    dst.buffer = targetDepth.data;
-                    TY_STATUS err = TYUndistortImage(&depth_calib_data, &src, NULL, &dst);
-                    if(err) {
-                        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth TYUndistortImage ret = :" << err);
-                    }
-                } else {
-                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid depth stream fmt :" << depth.type());
-                    return;
-                }
-            } else {
-                targetDepth = depth;
+            TY_IMAGE_DATA dst;
+            dst.width = depth.cols;
+            dst.height = depth.rows;
+            dst.size = depth.size().area() * 2;
+            dst.pixelFormat = TYPixelFormatCoord3D_C16;
+            dst.buffer = targetDepth.data;
+            TY_STATUS err = TYUndistortImage(&cam_depth_calib_data, &src, NULL, &dst);
+            if(err) {
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth TYUndistortImage ret = :" << err);
             }
+        } else {
+            targetDepth = depth;
+        }
             
-            if(topics_p3d_) {
-                TYMapDepthImageToPoint3d(&cam_depth_calib_data, targetDepth.cols, targetDepth.rows, (const uint16_t*)targetDepth.data, (TY_VECT_3F*)p3d.data, f_scale_unit);
-                VideoStreamPtr->PointCloudInit(p3d, &cam_depth_intrinsic[0], timestamp);
-            } else if(topics_color_p3d_) {
-                TY_CAMERA_EXTRINSIC extri_inv;
-                TYInvertExtrinsic(&cam_color_calib_data.extrinsic, &extri_inv);
-                TYMapDepthImageToPoint3d(&cam_depth_calib_data, targetDepth.cols, targetDepth.rows, (const uint16_t*)targetDepth.data, (TY_VECT_3F*)p3d.data, f_scale_unit);
-                TYMapPoint3dToPoint3d(&extri_inv, (TY_VECT_3F*)p3d.data, p3d.cols * p3d.rows, (TY_VECT_3F*)p3d.data);
-                VideoStreamPtr->PointCloudInit(p3d, &cam_color_intrinsic[0], timestamp);
-            }
-        } else if(depth.type() == CV_16SC3) {
-            for(int i = 0; i < depth.rows; i++) {
-                for(int j = 0; j < depth.cols; j++) {
-                    p3d.at<cv::Vec3f>(j, i) = static_cast<cv::Vec3f>(p3d.at<cv::Vec3s>(i, j));
+        if(topics_p3d_) {
+            TYMapDepthImageToPoint3d(&cam_depth_calib_data, targetDepth.cols, targetDepth.rows, (const uint16_t*)targetDepth.data, (TY_VECT_3F*)p3d.data, f_scale_unit);
+            VideoStreamPtr->PointCloudInit(p3d, cam_depth_intrinsic, timestamp);
+        } else if(topics_color_p3d_) {
+            TY_CAMERA_EXTRINSIC extri_inv;
+            TYInvertExtrinsic(&cam_color_calib_data.extrinsic, &extri_inv);
+            TYMapDepthImageToPoint3d(&cam_depth_calib_data, targetDepth.cols, targetDepth.rows, (const uint16_t*)targetDepth.data, (TY_VECT_3F*)p3d.data, f_scale_unit);
+            TYMapPoint3dToPoint3d(&extri_inv, (TY_VECT_3F*)p3d.data, p3d.cols * p3d.rows, (TY_VECT_3F*)p3d.data);
+            VideoStreamPtr->PointCloudInit(p3d, cam_color_intrinsic, timestamp);
+        }
+    } else if(depth.type() == CV_16SC3) {
+        for(int i = 0; i < depth.rows; i++) {
+            for(int j = 0; j < depth.cols; j++) {
+                if(depth.at<cv::Vec3s>(i, j)[2]) {
+                    p3d.at<cv::Vec3f>(i, j) = static_cast<cv::Vec3f>(depth.at<cv::Vec3s>(i, j));
+                } else {
+                    p3d.at<cv::Vec3f>(i, j) = cv::Point3f(
+                        std::numeric_limits<float>::quiet_NaN(),
+                        std::numeric_limits<float>::quiet_NaN(),
+                        std::numeric_limits<float>::quiet_NaN()
+                    );
                 }
-            }
-
-            if(topics_p3d_) {
-                VideoStreamPtr->PointCloudInit(p3d, &cam_depth_intrinsic[0], timestamp);
-            } else if(topics_color_p3d_) {
-                TY_CAMERA_EXTRINSIC extri_inv;
-                TYInvertExtrinsic(&cam_color_calib_data.extrinsic, &extri_inv);
-                TYMapPoint3dToPoint3d(&extri_inv, (TY_VECT_3F*)p3d.data, p3d.cols * p3d.rows, (TY_VECT_3F*)p3d.data);
-                VideoStreamPtr->PointCloudInit(p3d, &cam_color_intrinsic[0], timestamp);
             }
         }
-    } 
+        if(topics_p3d_) {
+            VideoStreamPtr->PointCloudInit(p3d, cam_depth_intrinsic, timestamp);
+        } else if(topics_color_p3d_) {
+            TY_CAMERA_EXTRINSIC extri_inv;
+            TYInvertExtrinsic(&cam_color_calib_data.extrinsic, &extri_inv);
+            TYMapPoint3dToPoint3d(&extri_inv, (TY_VECT_3F*)p3d.data, p3d.cols * p3d.rows, (TY_VECT_3F*)p3d.data);
+            VideoStreamPtr->PointCloudInit(p3d, cam_color_intrinsic, timestamp);
+        }
+    } else
+        ; 
 }
 
 static void PercipioXYZ48ToDepth(cv::Mat& p3d, cv::Mat& depth)
@@ -1342,14 +1438,12 @@ void PercipioDevice::frameDataReceive() {
                             }
                         }
                         depth = cv::Mat(frame.image[i].height, frame.image[i].width, CV_16U, frame.image[i].buffer);
-                        p3dStreamReceive(depth, frame.image[i].timestamp);
                     } else if((uint32_t)frame.image[i].pixelFormat == TYPixelFormatCoord3D_ABC16) {
-                        cv::Mat p3d = cv::Mat(frame.image[i].height, frame.image[i].width
+                        depth = cv::Mat(frame.image[i].height, frame.image[i].width
                           , CV_16SC3, frame.image[i].buffer);
-                        p3dStreamReceive(p3d, frame.image[i].timestamp);
-                        PercipioXYZ48ToDepth(p3d, depth);
                     }
                     depthStreamReceive(depth, frame.image[i].timestamp);
+                    p3dStreamReceive(depth, frame.image[i].timestamp);
                 }
 
                 if (frame.image[i].componentID == TY_COMPONENT_RGB_CAM) {
