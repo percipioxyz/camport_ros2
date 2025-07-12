@@ -535,9 +535,9 @@ void PercipioCameraNode::publishColorPointCloud(percipio_camera::VideoStream& st
                 *iter_x = p3d_data[3 * y * p3d.cols + 3 * x + 0] / 1000.0;
                 *iter_y = p3d_data[3 * y * p3d.cols + 3 * x + 1] / 1000.0;
                 *iter_z = depth / 1000.0;
-                *iter_r = color_data[(3 * y * p3d.cols + 3 * x)  + 2];
+                *iter_r = color_data[(3 * y * p3d.cols + 3 * x)  + 0];
                 *iter_g = color_data[(3 * y * p3d.cols + 3 * x)  + 1];
-                *iter_b = color_data[(3 * y * p3d.cols + 3 * x)  + 0];
+                *iter_b = color_data[(3 * y * p3d.cols + 3 * x)  + 2];
                 ++iter_x;
                 ++iter_y;
                 ++iter_z;
