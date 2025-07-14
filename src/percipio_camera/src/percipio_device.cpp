@@ -849,13 +849,13 @@ TY_STATUS PercipioDevice::color_stream_aec_roi_init()
         status = TYIntegerSetValue(handle, "AutoFunctionAOIOffsetX", ROI.x);
         if(status) RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "AutoFunctionAOIOffsetX write failed: " << status);
 
-        status = TYIntegerSetValue(handle, "AutoFunctionAOIOffsetY", ROI.x);
+        status = TYIntegerSetValue(handle, "AutoFunctionAOIOffsetY", ROI.y);
         if(status) RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "AutoFunctionAOIOffsetY write failed: " << status);
 
-        status = TYIntegerSetValue(handle, "AutoFunctionAOIWidth", ROI.x);
+        status = TYIntegerSetValue(handle, "AutoFunctionAOIWidth", ROI.w);
         if(status) RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "AutoFunctionAOIWidth write failed: " << status);
 
-        status = TYIntegerSetValue(handle, "AutoFunctionAOIHeight", ROI.x);
+        status = TYIntegerSetValue(handle, "AutoFunctionAOIHeight", ROI.h);
         if(status) RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "AutoFunctionAOIHeight write failed: " << status);
         
         return TY_STATUS_OK;
