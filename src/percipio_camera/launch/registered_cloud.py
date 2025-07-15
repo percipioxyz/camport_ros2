@@ -93,26 +93,27 @@ class PointCloudViewer3D(Node):
                 field_types[field.name] = field.datatype
             
             for p in gen:
-                points.append([p[0], p[1], p[2]])
+                if(p[2] < 10) :
+                    points.append([p[0], p[1], p[2]])
                 
-                # 处理颜色信息
-                if has_rgb:
-                    # 处理合并的rgb/rgba字段
-                    color_val = p[3]
-                    # 处理不同类型的颜色表示
-                    if isinstance(color_val, float):
-                        # 将浮点颜色转换为整数
-                        color_val_arr = struct.pack('<f', color_val) 
-                        color_val = color_val_arr[0] + (color_val_arr[1] << 8) | (color_val_arr[2] << 16)
-                    
-                    # 转换32位整数到RGB
-                    r = ((color_val >> 16) & 0x0000ff) / 255.0
-                    g = ((color_val >> 8) & 0x0000ff) / 255.0
-                    b = (color_val & 0x0000ff) / 255.0
-                    colors.append([r, g, b])
-                else:
-                    # 没有颜色信息时使用白色
-                    colors.append([1.0, 1.0, 1.0])
+                    # 处理颜色信息
+                    if has_rgb:
+                        # 处理合并的rgb/rgba字段
+                        color_val = p[3]
+                        # 处理不同类型的颜色表示
+                        if isinstance(color_val, float):
+                            # 将浮点颜色转换为整数
+                            color_val_arr = struct.pack('<f', color_val) 
+                            color_val = color_val_arr[0] + (color_val_arr[1] << 8) | (color_val_arr[2] << 16)
+                        
+                        # 转换32位整数到RGB
+                        r = ((color_val >> 16) & 0x0000ff) / 255.0
+                        g = ((color_val >> 8) & 0x0000ff) / 255.0
+                        b = (color_val & 0x0000ff) / 255.0
+                        colors.append([r, g, b])
+                    else:
+                        # 没有颜色信息时使用白色
+                        colors.append([1.0, 1.0, 1.0])
             
             if not points:
                 self.get_logger().warn("收到空点云消息!")
@@ -174,6 +175,7 @@ class PointCloudViewer3D(Node):
         dummy_cloud = o3d.geometry.PointCloud()
         dummy_cloud.points = o3d.utility.Vector3dVector(np.array([[0,0,0]]))
         vis.add_geometry(dummy_cloud)
+        ctr = vis.get_view_control()
         
         # 设置渲染选项
         render_opt = vis.get_render_option()
@@ -181,18 +183,6 @@ class PointCloudViewer3D(Node):
         render_opt.point_size = self.point_size
         render_opt.light_on = True
         
-        # 设置默认视角
-        ctr = vis.get_view_control()
-        cam = ctr.convert_to_pinhole_camera_parameters()
-        extrinsics = np.array([
-            [1, 0, 0, 0],
-            [0, 1, 0, 0],
-            [0, 0, 1, -1],
-            [0, 0, 0, 1]
-        ])
-        cam.extrinsic = extrinsics
-        ctr.convert_from_pinhole_camera_parameters(cam)
-
         current_view_params = None
         first_frame = True
         
@@ -216,6 +206,17 @@ class PointCloudViewer3D(Node):
                 
                 # 智能设置初始视角
                 if first_frame:
+                    center = np.array([0,   0,   0.5])
+                    
+                    eye_angle2 = center + np.array([0, 0, 5])      # 正上方
+                    lookat2 = center
+                    up2 = np.array([0, 1, 0])                      # Y轴向上
+
+                    ctr.set_lookat(lookat2)
+                    ctr.set_up(up2)
+                    ctr.set_front(eye_angle2 - lookat2)
+                    ctr.set_zoom(0.5)  # 适合室内场景的缩放值
+                    
                     self.save_current_pointcloud(self.latest_cloud)
                     first_frame = False
                 elif prev_view_params:
@@ -225,7 +226,7 @@ class PointCloudViewer3D(Node):
             # 更新渲染
             vis.poll_events()
             vis.update_renderer()
-            
+
             # 保存当前视图状态（用于下一次更新）
             current_view_params = ctr.convert_to_pinhole_camera_parameters()
             

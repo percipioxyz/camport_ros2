@@ -1425,6 +1425,12 @@ void PercipioDevice::frameDataReceive() {
                 if (frame.image[i].componentID == TY_COMPONENT_DEPTH_CAM){
                     cv::Mat depth;
                     if(frame.image[i].pixelFormat == TYPixelFormatCoord3D_C16) {
+                        uint16_t* ptrDepth = static_cast<uint16_t*>(frame.image[i].buffer);
+                        int32_t PixsCnt = frame.image[i].width * frame.image[i].height;
+                        for(int32_t i = 0; i < PixsCnt; i++) {
+                            if(ptrDepth[i] == 0xFFFF) ptrDepth[i] = 0;
+                        }
+                        
                         if(b_depth_spk_filter_en) {
                             DepthSpkFilterPara param = {m_depth_spk_size, m_depth_spk_diff};
                             TYDepthSpeckleFilter(frame.image[i], param);
