@@ -797,7 +797,9 @@ std::string PercipioDevice::parseStreamFormat(const std::string& format)
 
     if(fmt.find("yuv") != std::string::npos) return "yuv";
     if(fmt.find("ycbcr") != std::string::npos) return "yuv";
-
+    if(fmt.find("yuyv") != std::string::npos) return "yuv";
+    if(fmt.find("yvyu") != std::string::npos) return "yuv";
+    
     if(fmt.find("jpeg") != std::string::npos) return "jpeg";
 
     if(fmt.find("depth") != std::string::npos) return "depth16";
@@ -1430,7 +1432,7 @@ void PercipioDevice::frameDataReceive() {
                         for(int32_t i = 0; i < PixsCnt; i++) {
                             if(ptrDepth[i] == 0xFFFF) ptrDepth[i] = 0;
                         }
-                        
+
                         if(b_depth_spk_filter_en) {
                             DepthSpkFilterPara param = {m_depth_spk_size, m_depth_spk_diff};
                             TYDepthSpeckleFilter(frame.image[i], param);
