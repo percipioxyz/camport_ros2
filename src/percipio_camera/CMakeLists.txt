@@ -73,7 +73,7 @@ set(SOURCE_INCLUDES_DIR
 )
 
 set(SDK_INCLUDE_DIRS
-  camport3/include
+  camport4/include
   ${OpenCV_INCLUDED_DIRS}
 )
 
@@ -89,7 +89,7 @@ else()
   message(STATUS "host processor architecture is unknown")
 endif()
 
-set(SDK_LIBRARIES ${CMAKE_CURRENT_SOURCE_DIR}/camport3/lib/linux/lib_${ARCH}/libtycam.so)
+set(SDK_LIBRARIES ${CMAKE_CURRENT_SOURCE_DIR}/camport4/lib/linux/lib_${ARCH}/libtycam.so)
 
 macro(add_percipio_ros_executable TARGET SOURCE)
   add_executable(${TARGET} ${SOURCE} src/DepthInpainter.cpp  src/ImageSpeckleFilter.cpp src/MatViewer.cpp src/TYThread.cpp)
@@ -127,7 +127,7 @@ install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION bin
 )
 
-file(GLOB lib_files ${CMAKE_CURRENT_SOURCE_DIR}/camport3/lib/linux/lib_${ARCH}/*) 
+file(GLOB lib_files ${CMAKE_CURRENT_SOURCE_DIR}/camport4/lib/linux/lib_${ARCH}/*) 
 install(FILES ${lib_files} DESTINATION lib)
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)

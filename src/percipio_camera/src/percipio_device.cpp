@@ -406,8 +406,6 @@ TY_STATUS PercipioDevice::dump_image_mode_list(const TY_COMPONENT_ID comp, std::
 
 TY_STATUS PercipioDevice::image_mode_cfg(const TY_COMPONENT_ID comp, const percipio_video_mode& mode)
 {
-    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "==================image_mode_cfg set 0x" << std::hex  << comp
-            << "  mode : " << mode.width << " x " << mode.height << "  binning:" << mode.binning);
     if(GigeE_2_1 == gige_version) {
         int source = CamComponentIDToSourceIdx(comp);
         if(source < 0) return TY_STATUS_INVALID_COMPONENT;
@@ -1051,9 +1049,6 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
 {
     TY_STATUS status;
     uint32_t m_comp = StreamConvertComponent(idx);
-
-    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "==================stream_open 0x" << std::hex  << m_comp
-            << "  resolution : " << resolution << "  format:" << format);
     if(INVALID_COMPONENT_ID == m_comp) {
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid stream!");
         return false;
