@@ -337,6 +337,20 @@ TY_STATUS PercipioDevice::dump_image_mode_list(const TY_COMPONENT_ID comp, std::
             TYEnumGetEntryInfo(handle, "PixelFormat", &PixelFormatList[0], PixFmtCnt, &PixFmtCnt);
         }
 
+        int32_t m_def_fmt = 0;
+        ret = TYEnumGetValue(handle, "PixelFormat", &m_def_fmt);
+        if(ret) {
+            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Read sensor default pixel format failed: " << ret);
+            return ret;
+        }
+
+        int32_t m_def_binning = 0;
+        ret = TYEnumGetValue(handle, "BinningHorizontal", &m_def_binning);
+        if(ret) {
+            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Read sensor default binning failed: " << ret);
+            return ret;
+        }
+
         for(size_t i = 0; i < PixFmtCnt; i++) {
             uint32_t Fmt = PixelFormatList[i].value;
             std::string FmtDesc = std::string(PixelFormatList[i].name);
@@ -358,6 +372,19 @@ TY_STATUS PercipioDevice::dump_image_mode_list(const TY_COMPONENT_ID comp, std::
                 modes.push_back({Fmt, img_width, img_height, BinningList[j].value, FmtDesc});
             }
         }
+
+        ret = TYEnumSetValue(handle, "PixelFormat", m_def_fmt);
+        if(ret) {
+            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Write sensor default pixel format failed: " << ret);
+            return ret;
+        }
+
+        ret = TYEnumSetValue(handle, "BinningHorizontal", m_def_binning);
+        if(ret) {
+            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Write sensor default binning failed: " << ret);
+            return ret;
+        }
+
         return TY_STATUS_OK;
 
     } else {
@@ -379,6 +406,8 @@ TY_STATUS PercipioDevice::dump_image_mode_list(const TY_COMPONENT_ID comp, std::
 
 TY_STATUS PercipioDevice::image_mode_cfg(const TY_COMPONENT_ID comp, const percipio_video_mode& mode)
 {
+    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "==================image_mode_cfg set 0x" << std::hex  << comp
+            << "  mode : " << mode.width << " x " << mode.height << "  binning:" << mode.binning);
     if(GigeE_2_1 == gige_version) {
         int source = CamComponentIDToSourceIdx(comp);
         if(source < 0) return TY_STATUS_INVALID_COMPONENT;
@@ -1023,6 +1052,8 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
     TY_STATUS status;
     uint32_t m_comp = StreamConvertComponent(idx);
 
+    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "==================stream_open 0x" << std::hex  << m_comp
+            << "  resolution : " << resolution << "  format:" << format);
     if(INVALID_COMPONENT_ID == m_comp) {
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid stream!");
         return false;
@@ -1036,6 +1067,8 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
 
     int img_width, img_height;
     std::vector<percipio_video_mode> video_mode_val_list(0);
+
+
     bool valid_resolution = resolveStreamResolution(resolution, img_width, img_height);
     auto VideoModeList = mVideoMode[m_comp];
     if(VideoModeList.size()) {
