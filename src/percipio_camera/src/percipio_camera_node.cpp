@@ -606,6 +606,11 @@ void PercipioCameraNode::publishPointCloud(percipio_camera::VideoStream& stream)
         }
     }
 
+    point_cloud_msg->is_dense = true;
+    point_cloud_msg->width = valid_count;
+    point_cloud_msg->height = 1;
+    modifier.resize(valid_count);
+    
     point_cloud_msg->header.stamp = HWTimeUsToROSTime(stream.getPointCloudStramTimestamp());
     point_cloud_msg->header.frame_id = optical_frame_id[DEPTH_STREAM];
     point_cloud_pub_->publish(std::move(point_cloud_msg));
