@@ -34,7 +34,6 @@ def generate_launch_description():
         
         # Used to set the area of interest for color camera auto exposure
         # This setting requires that the camera itself supports this feature, otherwise the setting is invalid
-        DeclareLaunchArgument('color_aec_roi', default_value='254.755.227.173'),
         #DeclareLaunchArgument('color_aec_roi', default_value='0.0.1280.960'),
         
         DeclareLaunchArgument('color_qos', default_value='default'),
