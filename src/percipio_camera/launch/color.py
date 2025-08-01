@@ -16,7 +16,7 @@ class ImageSubscriber(Node):
         self.cv_bridge = CvBridge()
  
     def image_callback(self, msg):
-        cv_image = self.cv_bridge.imgmsg_to_cv2(msg)
+        cv_image = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         cv2.imshow('ROS Image window', cv_image)
         cv2.waitKey(1)
  

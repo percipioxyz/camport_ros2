@@ -133,7 +133,7 @@ void PercipioCameraNode::getParameters() {
     //device offline auto reconnection
     setAndGetNodeParameter(m_offline_auto_reconnection, "device_auto_reconnect", false);
 
-    //registration flag
+    //laser power flag
     setAndGetNodeParameter(m_laser_power, "laser_power", -1);
 
     //registration flag

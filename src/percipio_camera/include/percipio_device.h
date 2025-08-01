@@ -265,7 +265,7 @@ class PercipioDevice
         void colorStreamReceive(const cv::Mat& color, uint64_t& timestamp);
         void leftIRStreamReceive(const cv::Mat& ir,   uint64_t& timestamp);
         void rightIRStreamReceive(const cv::Mat& ir,  uint64_t& timestamp);
-        void depthStreamReceive(const cv::Mat& depth, uint64_t& timestamp);
+        void depthStreamReceive(cv::Mat& depth, uint64_t& timestamp);
         void p3dStreamReceive(const cv::Mat& depth,   uint64_t& timestamp);
 
 };
