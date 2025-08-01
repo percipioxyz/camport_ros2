@@ -1343,10 +1343,10 @@ void PercipioDevice::p3dStreamReceive(const cv::Mat& depth, uint64_t& timestamp)
             targetDepth = depth;
         }
         
-        if(topics_d_registration_) {
+        if(topics_color_p3d_) {
             TYMapDepthImageToPoint3d(&cam_color_calib_data, targetDepth.cols, targetDepth.rows, (const uint16_t*)targetDepth.data, (TY_VECT_3F*)p3d.data, f_scale_unit);
             VideoStreamPtr->PointCloudInit(p3d, cam_color_intrinsic, timestamp);
-        } else if(topics_color_p3d_) {
+        } else if(topics_p3d_) {
             TYMapDepthImageToPoint3d(&cam_depth_calib_data, targetDepth.cols, targetDepth.rows, (const uint16_t*)targetDepth.data, (TY_VECT_3F*)p3d.data, f_scale_unit);
             VideoStreamPtr->PointCloudInit(p3d, cam_depth_intrinsic, timestamp);
         }
