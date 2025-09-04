@@ -42,13 +42,13 @@ static int CamComponentIDToSourceIdx(const TY_COMPONENT_ID comp)
     return index;
 }
 
-static const char* StreamCompID2GenICamSource(const TY_COMPONENT_ID comp)
+static const int StreamCompID2GenICamSource(const TY_COMPONENT_ID comp)
 {
-    const char* genICamSource[] = {
-        "Range",
-        "Intensity",
-        "BinocularLeft",
-        "BinocularRight",
+    const int genICamSource[] = {
+        0,  //Depth
+        1,  //Texture
+        2,  //Left
+        3,  //Right
     };
     switch(comp){
         case TY_COMPONENT_DEPTH_CAM:
@@ -60,7 +60,7 @@ static const char* StreamCompID2GenICamSource(const TY_COMPONENT_ID comp)
         case TY_COMPONENT_IR_CAM_RIGHT:
             return genICamSource[3];
         default:
-            return nullptr;
+            return -1;
     }
 }
 
@@ -849,9 +849,9 @@ TY_STATUS PercipioDevice::color_stream_aec_roi_init()
     if(!enable_rgb_aec_roi) return TY_STATUS_OK;
     if(GigeE_2_1 == gige_version) {
         auto source = StreamCompID2GenICamSource(TY_COMPONENT_RGB_CAM);
-        if(!source) return TY_STATUS_INVALID_PARAMETER;
+        if(source < 0) return TY_STATUS_INVALID_PARAMETER;
 
-        status = TYEnumSetString(handle, "SourceSelector", source);
+        status = TYEnumSetValue(handle, "SourceSelector", source);
         if(status) {
             RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "SourceSelector init failed: " << status);
             return status;
@@ -924,7 +924,7 @@ TY_STATUS PercipioDevice::color_stream_aec_roi_init()
 void PercipioDevice::StreamDistortionMapInit(TY_COMPONENT_ID comp, percipio_distortion_map_info& map)
 {
     TY_STATUS status;
-    const char* source;
+    int32_t source;
     int64_t m_sensor_w, m_sensor_h;
     int64_t m_sensor_intr_w, m_sensor_intr_h;
     int32_t m_sensor_b;
@@ -950,25 +950,25 @@ void PercipioDevice::StreamDistortionMapInit(TY_COMPONENT_ID comp, percipio_dist
         if(status) goto INIT_FAIL;
     } else {
         source = StreamCompID2GenICamSource(comp);
-        if(!source) goto INIT_FAIL;
+        if(source < 0) goto INIT_FAIL;
 
-        status = TYEnumSetString(handle, "SourceSelector", source);
+        status = TYEnumSetValue(handle, "SourceSelector", source);
         if(status) goto INIT_FAIL;
 
         status = TYIntegerGetValue(handle, "SensorWidth", &m_sensor_w);
-        if(!source) goto INIT_FAIL;
+        if(status) goto INIT_FAIL;
 
         status = TYIntegerGetValue(handle, "SensorHeight", &m_sensor_h);
-        if(!source) goto INIT_FAIL;
+        if(status) goto INIT_FAIL;
 
         status = TYEnumGetValue(handle, "BinningHorizontal", &m_sensor_b);
-        if(!source) goto INIT_FAIL;
+        if(status) goto INIT_FAIL;
 
         status = TYIntegerGetValue(handle, "IntrinsicWidth", &m_sensor_intr_w);
-        if(!source) goto INIT_FAIL;
+        if(status) goto INIT_FAIL;
 
         status = TYIntegerGetValue(handle, "IntrinsicHeight", &m_sensor_intr_h);
-        if(!source) goto INIT_FAIL;
+        if(status) goto INIT_FAIL;
 
         double f_intrinsic[9];
         status = TYByteArrayGetValue(handle, "Intrinsic", (uint8_t*)f_intrinsic, sizeof(f_intrinsic));
@@ -1054,9 +1054,8 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
         return false;
     }
 
-    auto desc = StreamCompID2GenICamSource(m_comp);
     if((m_comp & allComps) != m_comp) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), desc << "Unsupported component!");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Unsupported component: " << m_comp);
         return false;
     }
 
@@ -1089,19 +1088,19 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
         if(video_mode_val_list.size()) {
             status = image_mode_cfg(m_comp, video_mode_val_list[0]);
             if(status != TY_STATUS_OK) {
-                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), desc << ": Stream mode init error: " << status);
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Stream mode init error: " << status);
             } else {
-                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), desc << ": Set stream mode: " << video_mode_val_list[0].desc << " " 
+                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set stream mode: " << video_mode_val_list[0].desc << " " 
                         << video_mode_val_list[0].width << "x" << video_mode_val_list[0].height);
             }
         } else {
-            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), desc << ": Unsupported stream mode: " << resolution);
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Unsupported stream mode: " << resolution);
         }
     }
 
     status = TYEnableComponents(handle, m_comp);
     if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), desc << ": Stream open error: " << status);
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Stream open error: " << status);
         return false;
     }
 
@@ -1113,7 +1112,7 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
             status = TYGetStruct(handle, TY_COMPONENT_DEPTH_CAM, TY_STRUCT_CAM_CALIB_DATA, &cam_depth_calib_data, sizeof(cam_depth_calib_data));
             if(status != TY_STATUS_OK) {
                 has_depth_calib_data = false;
-                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), desc << ": Got stream calib data error: " << status);
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Got stream calib data error: " << status);
             } else {
                 has_depth_calib_data = true;
                 cam_depth_intrinsic = image_intrinsic(cam_depth_calib_data.intrinsicWidth, cam_depth_calib_data.intrinsicHeight, cam_depth_calib_data.intrinsic);
@@ -1126,7 +1125,7 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
             status = TYGetStruct(handle, TY_COMPONENT_RGB_CAM, TY_STRUCT_CAM_CALIB_DATA, &cam_color_calib_data, sizeof(cam_color_calib_data));
             if(status != TY_STATUS_OK) {
                 has_color_calib_data = false;
-                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), desc << ": Got stream calib data error:" << status);
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Got stream calib data error:" << status);
             } else {
                 has_color_calib_data = true;
                 cam_color_intrinsic = image_intrinsic(cam_color_calib_data.intrinsicWidth, cam_color_calib_data.intrinsicHeight, cam_color_calib_data.intrinsic);
@@ -1164,15 +1163,14 @@ bool PercipioDevice::stream_close(const percipio_stream_index_pair& idx)
         return false;
     }
 
-    auto desc = StreamCompID2GenICamSource(m_comp);
     if((m_comp & allComps) != m_comp) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), desc << ": Unsupported component!");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Unsupported component: " << m_comp);
         return false;
     }
 
     status = TYDisableComponents(handle, m_comp);
     if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), desc << ": Stream close error: " << status);
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Stream close error: " << status);
         return false;
     }
 
