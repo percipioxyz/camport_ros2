@@ -54,6 +54,21 @@ find_package(nav_msgs REQUIRED)
 find_package(tf2_geometry_msgs  REQUIRED)
 find_package(cv_bridge REQUIRED)
 
+if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "i686")
+  set(ARCH i686)
+elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64")
+  set(ARCH x64)
+elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "aarch64")
+  set(ARCH Aarch64)
+elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "armv7")
+  set(ARCH armv7hf)
+else()
+  message(STATUS "host processor architecture is unknown")
+endif()
+
+find_package(TYCam REQUIRED PATHS ${CMAKE_CURRENT_SOURCE_DIR}/camport4 NO_DEFAULT_PATH)
+include_directories(${TYCam_INCLUDE_DIRS})
+
 set(SOURCE_FILES
   src/percipio_camera_node_driver.cpp
   src/percipio_camera_node.cpp
@@ -73,52 +88,36 @@ set(SOURCE_INCLUDES_DIR
 )
 
 set(SDK_INCLUDE_DIRS
-  camport4/include
+  ${TYCam_INCLUDE_DIRS}
   ${OpenCV_INCLUDED_DIRS}
 )
-
-if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "i686")
-  set(ARCH i686)
-elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64")
-  set(ARCH x64)
-elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "aarch64")
-  set(ARCH Aarch64)
-elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "armv7")
-  set(ARCH armv7hf)
-else()
-  message(STATUS "host processor architecture is unknown")
-endif()
-
-set(TY_CAM ${CMAKE_CURRENT_SOURCE_DIR}/camport4/lib/linux/lib_${ARCH}/libtycam.so)
-set(TY_IMAGEPROC ${CMAKE_CURRENT_SOURCE_DIR}/camport4/lib/linux/lib_${ARCH}/libtyimgproc.so)
 
 macro(add_percipio_ros_executable TARGET SOURCE)
   add_executable(${TARGET} ${SOURCE} src/DepthInpainter.cpp  src/ImageSpeckleFilter.cpp src/MatViewer.cpp src/TYThread.cpp)
   target_include_directories(${TARGET} PUBLIC ${SDK_INCLUDE_DIRS} ${SOURCE_INCLUDES_DIR})
-  target_link_libraries(${TARGET} ${TY_CAM} ${TY_IMAGEPROC} ${PROJECT_NAME})
+  target_link_libraries(${TARGET} ${TYCam_LIBS} ${PROJECT_NAME})
   ament_target_dependencies(${TARGET} ${dependencies})
 endmacro()
 
 add_percipio_ros_executable(list_devices src/list_devices.cpp)
-
 
 message(STATUS "OpenCV version: ${OpenCV_VERSION}")
 message(STATUS "PLC version: ${PLC_VERSION}")
 include_directories(${PCL_INCLUDE_DIRS})
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories(${SOURCE_INCLUDES_DIR})
+
 add_library(${PROJECT_NAME} SHARED
     ${SOURCE_FILES}
 )
 ament_target_dependencies(${PROJECT_NAME} ${dependencies})
 target_include_directories(${PROJECT_NAME} PUBLIC ${SDK_INCLUDE_DIRS} ${SOURCE_INCLUDES_DIR})
-target_link_libraries(${PROJECT_NAME} ${TY_CAM} ${TY_IMAGEPROC} ${rclcpp_LIBRARIES} ${opencv_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${TYCam_LIBS} ${rclcpp_LIBRARIES} ${opencv_LIBRARIES})
 
 rclcpp_components_register_node(${PROJECT_NAME}
     PLUGIN "percipio_camera::PercipioCameraNodeDriver"
     EXECUTABLE percipio_camera_node
 )
-
 
 ament_export_libraries(${PROJECT_NAME})
 
