@@ -89,12 +89,13 @@ else()
   message(STATUS "host processor architecture is unknown")
 endif()
 
-set(SDK_LIBRARIES ${CMAKE_CURRENT_SOURCE_DIR}/camport4/lib/linux/lib_${ARCH}/libtycam.so)
+set(TY_CAM ${CMAKE_CURRENT_SOURCE_DIR}/camport4/lib/linux/lib_${ARCH}/libtycam.so)
+set(TY_IMAGEPROC ${CMAKE_CURRENT_SOURCE_DIR}/camport4/lib/linux/lib_${ARCH}/libtyimgproc.so)
 
 macro(add_percipio_ros_executable TARGET SOURCE)
   add_executable(${TARGET} ${SOURCE} src/DepthInpainter.cpp  src/ImageSpeckleFilter.cpp src/MatViewer.cpp src/TYThread.cpp)
   target_include_directories(${TARGET} PUBLIC ${SDK_INCLUDE_DIRS} ${SOURCE_INCLUDES_DIR})
-  target_link_libraries(${TARGET} ${SDK_LIBRARIES} ${PROJECT_NAME})
+  target_link_libraries(${TARGET} ${TY_CAM} ${TY_IMAGEPROC} ${PROJECT_NAME})
   ament_target_dependencies(${TARGET} ${dependencies})
 endmacro()
 
@@ -111,7 +112,7 @@ add_library(${PROJECT_NAME} SHARED
 )
 ament_target_dependencies(${PROJECT_NAME} ${dependencies})
 target_include_directories(${PROJECT_NAME} PUBLIC ${SDK_INCLUDE_DIRS} ${SOURCE_INCLUDES_DIR})
-target_link_libraries(${PROJECT_NAME} ${SDK_LIBRARIES} ${rclcpp_LIBRARIES} ${opencv_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${TY_CAM} ${TY_IMAGEPROC} ${rclcpp_LIBRARIES} ${opencv_LIBRARIES})
 
 rclcpp_components_register_node(${PROJECT_NAME}
     PLUGIN "percipio_camera::PercipioCameraNodeDriver"
