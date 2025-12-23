@@ -13,10 +13,10 @@ typedef struct image_data {
   int           imageIndex;     ///< image index used in trigger mode
   int           status;         ///< Status of this buffer
   int           size;           ///< Buffer size
-  void*         buffer;         ///< Pointer to data buffer
+  char*         buffer;         ///< Pointer to data buffer
   int           width;          ///< Image width in pixels
   int           height;         ///< Image height in pixels
-  int           pixelFormat;    ///< Pixel format, see TY_PIXEL_FORMAT_LIST
+  int           pixelFormat;    ///< Pixel format, see TYPixFmt
 
   image_data() {
     memset(this, 0, sizeof(image_data));
@@ -74,11 +74,11 @@ typedef struct image_data {
 
   bool resize(const int sz) {
     if(buffer) 
-      delete []buffer;
+      delete [] buffer;
 
     if(sz) {
       buffer = new char[sz];
-      memset(buffer, 0, size);
+      memset(buffer, 0, sz);
     } else
       buffer = NULL;
 
@@ -87,6 +87,8 @@ typedef struct image_data {
   }
 
   image_data& operator=(const image_data& d) {
+    if(this == &d) return *this;
+    
     this->timestamp = d.timestamp;
     this->imageIndex = d.imageIndex;
     this->status = d.status;
@@ -105,7 +107,7 @@ typedef struct image_data {
 
   ~image_data() {
     if(buffer) {
-      delete []buffer;
+      delete [] buffer;
       buffer = NULL;
     }
   }
@@ -114,7 +116,7 @@ typedef struct image_data {
     return buffer;
   }
 
-}image_data;
+} image_data;
 
 
 class DepthTimeDomainMgr
@@ -128,7 +130,7 @@ class DepthTimeDomainMgr
 
     bool do_time_domain_process(TY_IMAGE_DATA& img);
 
-    const int param_image_num() { return m_image_num; }
+    int param_image_num() const { return m_image_num; }
 
   private:
     std::mutex _mutex;

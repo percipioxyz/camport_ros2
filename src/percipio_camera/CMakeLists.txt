@@ -75,11 +75,7 @@ set(SOURCE_FILES
   src/percipio_device.cpp
   src/percipio_video_mode.cpp
   src/TYThread.cpp
-  src/DepthInpainter.cpp
-  src/DepthStreamProc.cpp
   src/percipio_depth_algorithm.cpp
-  src/ImageSpeckleFilter.cpp
-  src/MatViewer.cpp
   src/huffman.cpp
 )
 
@@ -89,11 +85,10 @@ set(SOURCE_INCLUDES_DIR
 
 set(SDK_INCLUDE_DIRS
   ${TYCam_INCLUDE_DIRS}
-  ${OpenCV_INCLUDED_DIRS}
 )
 
 macro(add_percipio_ros_executable TARGET SOURCE)
-  add_executable(${TARGET} ${SOURCE} src/DepthInpainter.cpp  src/ImageSpeckleFilter.cpp src/MatViewer.cpp src/TYThread.cpp)
+  add_executable(${TARGET} ${SOURCE} src/TYThread.cpp)
   target_include_directories(${TARGET} PUBLIC ${SDK_INCLUDE_DIRS} ${SOURCE_INCLUDES_DIR})
   target_link_libraries(${TARGET} ${TYCam_LIBS} ${PROJECT_NAME})
   ament_target_dependencies(${TARGET} ${dependencies})
@@ -101,10 +96,8 @@ endmacro()
 
 add_percipio_ros_executable(list_devices src/list_devices.cpp)
 
-message(STATUS "OpenCV version: ${OpenCV_VERSION}")
 message(STATUS "PLC version: ${PLC_VERSION}")
 include_directories(${PCL_INCLUDE_DIRS})
-include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories(${SOURCE_INCLUDES_DIR})
 
 add_library(${PROJECT_NAME} SHARED
@@ -112,7 +105,7 @@ add_library(${PROJECT_NAME} SHARED
 )
 ament_target_dependencies(${PROJECT_NAME} ${dependencies})
 target_include_directories(${PROJECT_NAME} PUBLIC ${SDK_INCLUDE_DIRS} ${SOURCE_INCLUDES_DIR})
-target_link_libraries(${PROJECT_NAME} ${TYCam_LIBS} ${rclcpp_LIBRARIES} ${opencv_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${TYCam_LIBS} ${rclcpp_LIBRARIES})
 
 rclcpp_components_register_node(${PROJECT_NAME}
     PLUGIN "percipio_camera::PercipioCameraNodeDriver"

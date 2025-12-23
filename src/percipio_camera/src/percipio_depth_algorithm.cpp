@@ -1,5 +1,4 @@
 #include "percipio_depth_algorithm.h"
-#include "DepthStreamProc.h"
 
 namespace percipio_camera
 {
@@ -14,7 +13,7 @@ void DepthTimeDomainMgr::reset(const int frame)
 void DepthTimeDomainMgr::add_frame(const TY_IMAGE_DATA& img)
 {
   std::unique_lock<std::mutex> lock(_mutex);
-  while(images.size() >= m_image_num) {
+  while(images.size() >= static_cast<size_t>(m_image_num)) {
     images.erase(images.begin());
   }
   images.push_back(image_data(img));
@@ -23,7 +22,7 @@ void DepthTimeDomainMgr::add_frame(const TY_IMAGE_DATA& img)
 bool DepthTimeDomainMgr::do_time_domain_process(TY_IMAGE_DATA& img)
 {
   std::unique_lock<std::mutex> lock(_mutex);
-  if(images.size() < m_image_num) {
+  if(images.size() < static_cast<size_t>(m_image_num)) {
     return false;
   }
 
@@ -32,7 +31,8 @@ bool DepthTimeDomainMgr::do_time_domain_process(TY_IMAGE_DATA& img)
     imgs.push_back( images[i].toTyImage(TY_COMPONENT_DEPTH_CAM));
   }
 
-  TY_STATUS ret = TYDepthEnhenceFilter(imgs, img);
+  static DepthEnhenceParameters para = DepthEnhenceParameters_Initializer;
+  TY_STATUS ret = TYDepthEnhenceFilter(&imgs[0], imgs.size(), nullptr, &img, &para);
   return ret == TY_STATUS_OK ? true : false;
 }
 

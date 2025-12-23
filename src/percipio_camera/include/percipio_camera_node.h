@@ -101,6 +101,7 @@ class PercipioCameraNode {
         bool depth_speckle_filter_enable = false;
         int  max_speckle_size = 150;
         int  max_speckle_diff = 64;
+        float max_physical_size = 20.0;
 
         bool depth_time_domain_filter_enable = false;
         int  depth_time_domain_num = 3;

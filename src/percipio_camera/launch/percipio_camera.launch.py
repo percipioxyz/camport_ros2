@@ -27,7 +27,7 @@ def generate_launch_description():
 
         # Enable rgb stream output
         DeclareLaunchArgument('color_enable', default_value='true'),
-        DeclareLaunchArgument('color_resolution', default_value='"1280x960"'),
+        DeclareLaunchArgument('color_resolution', default_value='"640x480"'),
         #format list:yuv / jpeg / bayer / mono...
         #DeclareLaunchArgument('color_format', default_value='"yuv"'),
 
@@ -41,7 +41,7 @@ def generate_launch_description():
 
         # Enable depth stream output
         DeclareLaunchArgument('depth_enable', default_value='true'),
-        DeclareLaunchArgument('depth_resolution', default_value='"640x480"'),
+        DeclareLaunchArgument('depth_resolution', default_value='"640x400"'),
 
         #format list:depth16/xyz48...
         #DeclareLaunchArgument('depth_format', default_value='"xyz48"'),
@@ -58,6 +58,8 @@ def generate_launch_description():
         DeclareLaunchArgument('max_speckle_size', default_value='150'),
         #Maximum difference between neighbor disparity pixels
         DeclareLaunchArgument('max_speckle_diff', default_value='64'),
+        #Maximum Speckle Physical Size to be Filtered-Out, uint is mm^2
+        DeclareLaunchArgument('max_physical_size', default_value='20.0'),
   
         #depth stream Time-domain filtering enable/disable switch
         DeclareLaunchArgument('depth_time_domain_filter', default_value='false'),

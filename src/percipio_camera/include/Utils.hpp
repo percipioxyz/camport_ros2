@@ -1,10 +1,6 @@
 #ifndef SAMPLE_COMMON_UTILS_HPP_
 #define SAMPLE_COMMON_UTILS_HPP_
 
-/**
- * This file excludes opencv for sample_raw.
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

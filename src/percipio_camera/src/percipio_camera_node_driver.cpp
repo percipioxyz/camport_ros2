@@ -7,9 +7,7 @@
 #include <sys/mman.h>
 
 #include <vector>
-
-#include "common.hpp"
-
+#include "Utils.hpp"
 
 namespace percipio_camera {
 

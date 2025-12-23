@@ -142,7 +142,7 @@ bool json_parse(const TY_DEV_HANDLE hDevice, const char* jscode)
             if(!comp_desc.is_string()) continue;
             if(!features.is_array()) continue;
 
-            const char* comp_desc_str = comp_desc.string_value().c_str();
+            //const char* comp_desc_str = comp_desc.string_value().c_str();
             const char* comp_id_str   = comp_id.string_value().c_str();
 
             TY_COMPONENT_ID m_comp_id;
@@ -156,7 +156,7 @@ bool json_parse(const TY_DEV_HANDLE hDevice, const char* jscode)
                 if(!feat_id.is_string()) continue;
                 if(!feat_name.is_string()) continue;
 
-                const char* feat_name_str = feat_name.string_value().c_str();
+                //const char* feat_name_str = feat_name.string_value().c_str();
                 const char* feat_id_str = feat_id.string_value().c_str();
 
                 TY_FEATURE_ID m_feat_id;

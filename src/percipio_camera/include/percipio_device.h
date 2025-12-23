@@ -11,7 +11,6 @@
 #include <mutex>
 
 #include "TYParameter.h"
-#include "DepthStreamProc.h"
 #include "percipio_depth_algorithm.h"
 
 #include "percipio_video_mode.h"
@@ -115,6 +114,7 @@ struct percipio_video_mode
 typedef std::map<uint32_t, std::vector<percipio_video_mode>> PercipioVideoMode;
 
 class PercipioCameraNode;
+
 class PercipioDevice
 {
     public:
@@ -175,7 +175,7 @@ class PercipioDevice
         void topics_color_point_cloud_enable(bool enable);
         void topics_depth_registration_enable(bool enable);
 
-        void depth_speckle_filter_init(bool enable, int spec_size, int spec_diff);
+        void depth_speckle_filter_init(bool enable, int spec_size, int spec_diff, float phy_size);
         void dpeth_time_domain_filter_init(bool enable, int number);
         
         bool load_default_parameter();
@@ -231,6 +231,7 @@ class PercipioDevice
         bool b_depth_spk_filter_en = false;
         int  m_depth_spk_size = 150;
         int  m_depth_spk_diff = 64;
+        float f_depth_spk_phy_size = 20.f;
 
         bool b_depth_time_domain_en = false;
         int  m_depth_time_domain_frame_num = 3;
@@ -255,18 +256,21 @@ class PercipioDevice
 
         TY_STATUS device_open(const char* faceId, const char* deviceId);
 
-        bool resolveStreamResolution(const std::string& resolution_, int& width, int& height);
+        bool resolveStreamResolution(const std::string& resolution_, uint32_t& width, uint32_t& height);
         std::string parseStreamFormat(const std::string& format);
 
         TY_STATUS color_stream_aec_roi_init();
 
-        void StreamDistortionMapInit(TY_COMPONENT_ID comp, percipio_distortion_map_info& map);
+        //void StreamDistortionMapInit(TY_COMPONENT_ID comp, percipio_distortion_map_info& map);
 
-        void colorStreamReceive(const cv::Mat& color, uint64_t& timestamp);
-        void leftIRStreamReceive(const cv::Mat& ir,   uint64_t& timestamp);
-        void rightIRStreamReceive(const cv::Mat& ir,  uint64_t& timestamp);
-        void depthStreamReceive(cv::Mat& depth, uint64_t& timestamp);
-        void p3dStreamReceive(const cv::Mat& depth,   uint64_t& timestamp);
+        void colorStreamReceive(const TYImage& color, uint64_t& timestamp);
+        void leftIRStreamReceive(const TYImage& ir,   uint64_t& timestamp);
+        void rightIRStreamReceive(const TYImage& ir,  uint64_t& timestamp);
+        void depthStreamReceive(TYImage& depth, uint64_t& timestamp);
+        void p3dStreamReceive(const TYImage& depth,   uint64_t& timestamp);
+
+        int depth_scale_unit_init(float& dept_scale_unit);
+        int stream_calib_data_init(const TY_COMPONENT_ID comp, TY_CAMERA_CALIB_INFO& calib_data);
 
 };
 }
