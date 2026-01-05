@@ -46,20 +46,6 @@ enum GigEVersion
     GigeE_2_1,    
 };
 
-struct percipio_distortion_map_info
-{
-    public:
-        int m_map_width = 0;
-        int m_map_height = 0;
-        std::vector<float> f_map_x;
-        std::vector<float> f_map_y;
-
-        bool IsValid() {
-            if(m_map_width * m_map_height <= 0) return false;
-            return true;
-        }
-};
-
 class image_intrinsic
 {
     public:
@@ -115,6 +101,16 @@ typedef std::map<uint32_t, std::vector<percipio_video_mode>> PercipioVideoMode;
 
 class PercipioCameraNode;
 
+class GigEBase
+{
+public:
+    GigEBase(const TY_DEV_HANDLE dev) : hDevice(dev){};
+    virtual ~GigEBase() {};
+
+protected:
+    TY_DEV_HANDLE hDevice;
+};
+
 class PercipioDevice
 {
     public:
@@ -122,7 +118,7 @@ class PercipioDevice
         ~PercipioDevice();
 
         void set_workmode(percipio_dev_workmode mode) { workmode = mode; }
-
+        
         TY_STATUS Reconnect();
         void Release();
         void register_node(void* para) { _node = (PercipioCameraNode*)para; }
@@ -140,6 +136,8 @@ class PercipioDevice
         bool hasDepth();
         bool hasLeftIR();
         bool hasRightIR();
+
+        const std::unique_ptr<GigEBase> m_gige_dev;
 
         TY_STATUS dump_image_mode_list(const TY_COMPONENT_ID comp, std::vector<percipio_video_mode>& modes);
         TY_STATUS image_mode_cfg(const TY_COMPONENT_ID comp, const percipio_video_mode& mode);
@@ -220,8 +218,6 @@ class PercipioDevice
         bool  b_need_do_depth_undistortion = false;
         bool  has_depth_calib_data = false;
         bool  has_color_calib_data = false;
-        //TY_CAMERA_CALIB_INFO depth_calib_data;
-        //TY_CAMERA_CALIB_INFO color_calib_data;
 
         bool topics_depth_ = false;
         bool topics_p3d_ = false;

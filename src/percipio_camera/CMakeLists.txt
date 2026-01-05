@@ -69,10 +69,24 @@ endif()
 find_package(TYCam REQUIRED PATHS ${CMAKE_CURRENT_SOURCE_DIR}/camport4 NO_DEFAULT_PATH)
 include_directories(${TYCam_INCLUDE_DIRS})
 
+file(GLOB_RECURSE IGNORE_WARNING_SOURCES 
+    "${TYCam_INCLUDE_DIRS}/*.h"
+)
+
+foreach(source ${IGNORE_WARNING_SOURCES})
+    message("=============${source}")
+    set_source_files_properties(${source}
+        PROPERTIES
+        COMPILE_FLAGS "${CMAKE_CXX_FLAGS} -w"
+    )
+endforeach()
+
 set(SOURCE_FILES
   src/percipio_camera_node_driver.cpp
   src/percipio_camera_node.cpp
   src/percipio_device.cpp
+  src/gige_2_0.cpp
+  src/gige_2_1.cpp
   src/percipio_video_mode.cpp
   src/TYThread.cpp
   src/percipio_depth_algorithm.cpp
