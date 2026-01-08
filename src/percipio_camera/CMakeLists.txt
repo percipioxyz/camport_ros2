@@ -85,6 +85,7 @@ set(SOURCE_FILES
   src/percipio_camera_node_driver.cpp
   src/percipio_camera_node.cpp
   src/percipio_device.cpp
+  src/percipio_log_server.cpp
   src/gige_2_0.cpp
   src/gige_2_1.cpp
   src/percipio_video_mode.cpp

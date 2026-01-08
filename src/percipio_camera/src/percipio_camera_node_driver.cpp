@@ -1,4 +1,5 @@
 #include "percipio_camera_node_driver.h"
+#include "percipio_log_server.h"
 #include <fcntl.h>
 #include <semaphore.h>
 #include <sys/shm.h>
@@ -7,6 +8,7 @@
 #include <sys/mman.h>
 
 #include <vector>
+#include <map>
 #include "Utils.hpp"
 
 namespace percipio_camera {
@@ -43,9 +45,17 @@ void PercipioCameraNodeDriver::init() {
     device_serial_number_   = declare_parameter<std::string>("serial_number", "");
     device_ip_              = declare_parameter<std::string>("device_ip", "");
     device_workmode_        = declare_parameter<std::string>("device_workmode", "");
+
+    device_log_enable_      = declare_parameter<bool>("device_log_enable", false);
+    device_log_level_       = declare_parameter<std::string>("device_log_level", "ERROR");
+    device_log_server_port_ = declare_parameter<int32_t>("device_log_server_port", 9001);
+
+    tycam_log_server_init(device_log_enable_, device_log_level_, device_log_server_port_);
     
     RCLCPP_INFO_STREAM(logger_, "PercipioCameraNodeDriver::init, deivce sn :" << device_serial_number_);
     RCLCPP_INFO_STREAM(logger_, "PercipioCameraNodeDriver::init, deivce ip :" << device_ip_);
+
+
     startDevice();
 }
 
@@ -91,6 +101,7 @@ bool PercipioCameraNodeDriver::initializeDevice(const TY_DEVICE_BASE_INFO& devic
     device_cfg_version_ = percipio_device->configVersion();
     RCLCPP_INFO_STREAM(logger_, "Serial number:  " << device_serial_number_);
     RCLCPP_INFO_STREAM(logger_, "Model name:     " << device_model_name_);
+    RCLCPP_INFO_STREAM(logger_, "Build hash:     " << device_buildhash_);
     RCLCPP_INFO_STREAM(logger_, "Config version: " << device_cfg_version_);
 
     if(device_workmode_ == "trigger_soft")
@@ -105,6 +116,50 @@ bool PercipioCameraNodeDriver::initializeDevice(const TY_DEVICE_BASE_INFO& devic
     percipio_camera_node_ = std::make_unique<PercipioCameraNode>(this, percipio_device);
     return true;
 }
+
+int PercipioCameraNodeDriver::tycam_log_server_init(bool enable, const std::string& level, int32_t port)
+{
+    if(enable) {
+        PercipioTcpLogServer::getInstance().start(port);
+        
+        TY_STATUS status = TYSetLogPrefix("[TYCam]");
+        if(status) RCLCPP_WARN_STREAM(logger_, "Failed to set log prefix: " << status);
+        
+        status = TYEnableLog(TY_LOG_TYPE_SERVER);
+        if(status) RCLCPP_WARN_STREAM(logger_, "Failed to enable log: " << status);
+
+        static std::map<std::string, TY_LOG_LEVEL> lv_map = {
+            {"VERBOSE",  TY_LOG_LEVEL_VERBOSE},
+            {"DEBUG",    TY_LOG_LEVEL_DEBUG  },
+            {"INFO",     TY_LOG_LEVEL_INFO   },
+            {"WARNING",  TY_LOG_LEVEL_WARNING},
+            {"ERROR",    TY_LOG_LEVEL_ERROR  },
+            {"NEVER",    TY_LOG_LEVEL_NEVER  }
+        };
+
+        TY_LOG_LEVEL log_level;
+        auto it = lv_map.find(level);
+        if (it == lv_map.end())
+            log_level = TY_LOG_LEVEL_ERROR;
+        else
+            log_level = it->second;
+
+        status = TYSetLogLevel(TY_LOG_TYPE_SERVER, log_level);
+        if(status) RCLCPP_WARN_STREAM(logger_, "Failed to set log level: " << status);
+
+        static std::string host = "127.0.0.1";
+        status = TYCfgLogServer(TY_SERVER_TYPE_TCP, (char*)host.c_str(), port);
+        if(status) {
+            RCLCPP_WARN_STREAM(logger_, "Failed to cfg log server(" << host << ":" << port << "): " << status);
+            return -1;
+        }
+    } else {
+        PercipioTcpLogServer::getInstance().stop();
+    }
+    
+    return 0;
+}
+
 }
 
 RCLCPP_COMPONENTS_REGISTER_NODE(percipio_camera::PercipioCameraNodeDriver)

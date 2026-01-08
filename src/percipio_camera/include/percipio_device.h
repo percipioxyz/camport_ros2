@@ -107,8 +107,37 @@ public:
     GigEBase(const TY_DEV_HANDLE dev) : hDevice(dev){};
     virtual ~GigEBase() {};
 
+    virtual TY_STATUS init() = 0;
+
+    virtual void video_mode_init();
+
+    virtual TY_STATUS dump_image_mode_list(const TY_COMPONENT_ID comp, std::vector<percipio_video_mode>& modes) = 0;
+
+    virtual TY_STATUS image_mode_cfg(const TY_COMPONENT_ID comp, const percipio_video_mode& mode) = 0;
+
+    virtual TY_STATUS stream_calib_data_init(const TY_COMPONENT_ID comp, TY_CAMERA_CALIB_INFO& calib_data) = 0;
+
+    virtual void depth_stream_distortion_check(bool& has_undist_data) = 0;
+
+    virtual TY_STATUS depth_scale_unit_init(float& dept_scale_unit) = 0;
+
+    virtual TY_STATUS color_stream_aec_roi_init(const TY_AEC_ROI_PARAM& ROI) = 0;
+
+    virtual TY_STATUS set_tof_depth_quality(const std::string& qua) = 0;
+    virtual TY_STATUS set_tof_modulation_threshold(int threshold) = 0;
+    virtual TY_STATUS set_tof_jitter_threshold(int threshold) = 0;
+    virtual TY_STATUS set_tof_filter_threshold(int threshold) = 0;
+    virtual TY_STATUS set_tof_channel(int chan) = 0;
+    virtual TY_STATUS set_tof_HDR_ratio(int ratio) = 0;
+
+
+    uint32_t streams() { return allComps;}
+public:
+    PercipioVideoMode mVideoMode;
+    
 protected:
     TY_DEV_HANDLE hDevice;
+    TY_COMPONENT_ID allComps = 0;
 };
 
 class PercipioDevice
@@ -137,10 +166,7 @@ class PercipioDevice
         bool hasLeftIR();
         bool hasRightIR();
 
-        const std::unique_ptr<GigEBase> m_gige_dev;
-
-        TY_STATUS dump_image_mode_list(const TY_COMPONENT_ID comp, std::vector<percipio_video_mode>& modes);
-        TY_STATUS image_mode_cfg(const TY_COMPONENT_ID comp, const percipio_video_mode& mode);
+        std::unique_ptr<GigEBase> m_gige_dev;
 
         void enable_gvsp_resend(const bool en);
 
@@ -148,13 +174,6 @@ class PercipioDevice
 
         bool set_laser_power(const int power);
         
-        bool set_tof_depth_quality(const std::string& qua);
-        bool set_tof_modulation_threshold(const int threshold);
-        bool set_tof_jitter_threshold(const int threshold);
-        bool set_tof_filter_threshold(const int threshold);
-        bool set_tof_channel(const int chan);
-        bool set_tof_HDR_ratio(const int ratio);
-
         float getDepthValueScale();
         
         bool update_color_aec_roi(int x, int y , int w, int h);
@@ -166,8 +185,6 @@ class PercipioDevice
 
         void setFrameCallback(FrameCallbackFunction callback);
 
-        void depth_stream_distortion_check();
-
         void topics_depth_stream_enable(bool enable);
         void topics_point_cloud_enable(bool enable);
         void topics_color_point_cloud_enable(bool enable);
@@ -175,8 +192,6 @@ class PercipioDevice
 
         void depth_speckle_filter_init(bool enable, int spec_size, int spec_diff, float phy_size);
         void dpeth_time_domain_filter_init(bool enable, int number);
-        
-        bool load_default_parameter();
 
         std::mutex softtrigger_mutex;
 
@@ -184,6 +199,13 @@ class PercipioDevice
         std::condition_variable offline_detect_cond;
 
         TY_EVENT_INFO device_ros_event;
+
+        TY_STATUS set_tof_depth_quality(const std::string& qua) { return m_gige_dev->set_tof_depth_quality(qua); };
+        TY_STATUS set_tof_modulation_threshold(int threshold) { return m_gige_dev->set_tof_modulation_threshold(threshold); };
+        TY_STATUS set_tof_jitter_threshold(int threshold) { return m_gige_dev->set_tof_jitter_threshold(threshold); };
+        TY_STATUS set_tof_filter_threshold(int threshold) { return m_gige_dev->set_tof_filter_threshold(threshold); };
+        TY_STATUS set_tof_channel(int chan) { return m_gige_dev->set_tof_channel(chan); };
+        TY_STATUS set_tof_HDR_ratio(int ratio) { return m_gige_dev->set_tof_HDR_ratio(ratio); };
 
     private:
         PercipioCameraNode* _node;
@@ -197,8 +219,6 @@ class PercipioDevice
         std::string strDeviceId;
         std::vector<percipio_stream_property> m_streams;
 
-        PercipioVideoMode mVideoMode;
-
         TY_AEC_ROI_PARAM ROI;
         bool enable_rgb_aec_roi = false;
 
@@ -207,8 +227,7 @@ class PercipioDevice
         TY_DEV_HANDLE handle;
 
         TY_DEVICE_BASE_INFO base_info;
-        TY_COMPONENT_ID allComps;
-
+        
         percipio_dev_workmode workmode = CONTINUS;
 
         std::atomic_bool is_running_{false};
@@ -255,18 +274,10 @@ class PercipioDevice
         bool resolveStreamResolution(const std::string& resolution_, uint32_t& width, uint32_t& height);
         std::string parseStreamFormat(const std::string& format);
 
-        TY_STATUS color_stream_aec_roi_init();
-
-        //void StreamDistortionMapInit(TY_COMPONENT_ID comp, percipio_distortion_map_info& map);
-
         void colorStreamReceive(const TYImage& color, uint64_t& timestamp);
         void leftIRStreamReceive(const TYImage& ir,   uint64_t& timestamp);
         void rightIRStreamReceive(const TYImage& ir,  uint64_t& timestamp);
         void depthStreamReceive(TYImage& depth, uint64_t& timestamp);
         void p3dStreamReceive(const TYImage& depth,   uint64_t& timestamp);
-
-        int depth_scale_unit_init(float& dept_scale_unit);
-        int stream_calib_data_init(const TY_COMPONENT_ID comp, TY_CAMERA_CALIB_INFO& calib_data);
-
 };
 }

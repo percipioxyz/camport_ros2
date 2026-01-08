@@ -13,6 +13,12 @@ def generate_launch_description():
         DeclareLaunchArgument('serial_number', default_value='""'),
         DeclareLaunchArgument('device_ip', default_value=''),
 
+        # Device log configuration
+        DeclareLaunchArgument('device_log_enable', default_value='false'),
+        # Device log level VERBOSE / DEBUG / INFO / WARNING / ERROR / NEVER
+        DeclareLaunchArgument('device_log_level', default_value='WARNING'),
+        DeclareLaunchArgument('device_log_server_port', default_value='9001'),
+
         # Setup device work mode
         # If using trigger_stoft mode, you can refer to the example file "send_trigger.py" to send soft trigger signal
         DeclareLaunchArgument('device_workmode', default_value='trigger_off'),#trigger_off / trigger_soft / trigger_hard
