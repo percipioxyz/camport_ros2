@@ -15,6 +15,8 @@
 
 #include "percipio_video_mode.h"
 
+#include "percipio_xml.h"
+
 namespace percipio_camera {
 
 enum percipio_stream_type {
@@ -101,6 +103,13 @@ typedef std::map<uint32_t, std::vector<percipio_video_mode>> PercipioVideoMode;
 
 class PercipioCameraNode;
 
+typedef struct {
+    std::string node_desc;
+    std::string node_info;
+} device_node_info;
+
+typedef std::map<std::string, std::vector<device_node_info>> percipio_feat_info;
+
 class GigEBase
 {
 public:
@@ -110,6 +119,10 @@ public:
     virtual TY_STATUS init() = 0;
 
     virtual void video_mode_init();
+
+    virtual int parse_xml_parameters(const std::string& xml);
+
+    virtual void device_load_parameters() = 0;
 
     virtual TY_STATUS dump_image_mode_list(const TY_COMPONENT_ID comp, std::vector<percipio_video_mode>& modes) = 0;
 
@@ -138,6 +151,9 @@ public:
 protected:
     TY_DEV_HANDLE hDevice;
     TY_COMPONENT_ID allComps = 0;
+
+    tinyxml2::XMLDocument m_doc;
+    percipio_feat_info parameters;
 };
 
 class PercipioDevice
@@ -155,6 +171,7 @@ class PercipioDevice
         bool isAlive();
         PercipioDeviceEventCallbackFunction _event_callback;
         void registerCameraEventCallback(PercipioDeviceEventCallbackFunction callback);
+        void setDeviceConfig(const std::string& config_xml);
 
         std::string serialNumber();
         std::string modelName();

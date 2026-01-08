@@ -29,6 +29,8 @@ class PercipioCameraNodeDriver : public rclcpp::Node {
     std::string device_ip_;
     std::string device_workmode_;
 
+    std::string device_config_xml_;
+
     bool device_log_enable_;
     std::string device_log_level_;
     int32_t device_log_server_port_;

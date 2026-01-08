@@ -141,6 +141,93 @@ TY_STATUS GigE_2_1::image_mode_cfg(const TY_COMPONENT_ID comp, const percipio_vi
     return TYEnumSetValue(hDevice, "BinningHorizontal", mode.binning);
 }
 
+void GigE_2_1::device_load_parameters()
+{
+    TY_STATUS status;
+    std::string  m_current_source;
+    for(auto& iter : parameters) {
+        static std::set<std::string> source_list = {
+            "Depth", "Texture", "Left", "Right"
+        };
+
+        const std::string& source = iter.first;
+        auto target_source = source_list.find(source);
+        if(target_source != source_list.end()) {
+            char szSourceString[200];
+            status = TYEnumGetString(hDevice, "SourceSelector", szSourceString, sizeof(szSourceString));
+            if(status) {
+                m_current_source = "";
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to read SourceSelector: " << status);
+            } else {
+                m_current_source = std::string(szSourceString);
+            }
+
+            if(m_current_source != source) {
+                status = TYEnumSetString(hDevice, "SourceSelector", source.c_str());
+                if(status) {
+                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to write SourceSelector: " << status);
+                    continue;
+                }
+                m_current_source = source;
+            }
+        }
+
+        for(auto& feat : iter.second) {
+            const std::string& feature = feat.node_desc;
+            const std::string& feat_val = feat.node_info;
+
+            ParamType type;
+            status = TYParamGetType(hDevice, feature.c_str(), &type);
+            if(status) {
+                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to check node type(" << feature << "), err: " << status);
+                continue;
+            }
+
+            switch(type) {
+                case Integer: {
+                    int32_t val = atoi(feat_val.c_str());
+                    status = TYIntegerSetValue(hDevice, feature.c_str(), val);
+                    break;
+                }
+        
+                case Float: {
+                    double val = atoi(feat_val.c_str());
+                    status = TYFloatSetValue(hDevice, feature.c_str(), val);
+                    break;
+                }
+
+                case Boolean: {
+                    bool val = static_cast<bool>(atof(feat_val.c_str()));
+                    status = TYBooleanSetValue(hDevice, feature.c_str(), val);
+                    break;
+                }
+
+                case Enumeration: {
+                    int32_t val = atoi(feat_val.c_str());
+                    status = TYEnumSetValue(hDevice, feature.c_str(), val);
+                    break;
+                }
+
+                case String: {
+                    status = TYStringSetValue(hDevice, feature.c_str(), feat_val.c_str());
+                    break;
+                }
+
+                default:{
+                    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Unsupported node type: " <<  source << "/" <<  feature);
+                    break;
+                }
+            }
+
+            if(status) {
+                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Xml parameter(" << source << ":" << feature << ") init failed(" << TYErrorString(status) << "(" << status << ")");
+                continue;
+            }
+        }
+    }
+    return ;
+}
+
 TY_STATUS GigE_2_1::stream_calib_data_init(const TY_COMPONENT_ID comp, TY_CAMERA_CALIB_INFO& calib_data)
 {
     int source = CamComponentIDToSourceIdx(comp);

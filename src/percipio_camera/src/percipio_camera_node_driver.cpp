@@ -46,6 +46,8 @@ void PercipioCameraNodeDriver::init() {
     device_ip_              = declare_parameter<std::string>("device_ip", "");
     device_workmode_        = declare_parameter<std::string>("device_workmode", "");
 
+    device_config_xml_      = declare_parameter<std::string>("camera_parameter", "");
+
     device_log_enable_      = declare_parameter<bool>("device_log_enable", false);
     device_log_level_       = declare_parameter<std::string>("device_log_level", "ERROR");
     device_log_server_port_ = declare_parameter<int32_t>("device_log_server_port", 9001);
@@ -54,8 +56,6 @@ void PercipioCameraNodeDriver::init() {
     
     RCLCPP_INFO_STREAM(logger_, "PercipioCameraNodeDriver::init, deivce sn :" << device_serial_number_);
     RCLCPP_INFO_STREAM(logger_, "PercipioCameraNodeDriver::init, deivce ip :" << device_ip_);
-
-
     startDevice();
 }
 
@@ -112,6 +112,10 @@ bool PercipioCameraNodeDriver::initializeDevice(const TY_DEVICE_BASE_INFO& devic
         percipio_device->set_workmode(CONTINUS);
     
     percipio_device->registerCameraEventCallback(boost::bind(&PercipioCameraNodeDriver::onCameraEventCallback, this, _1, _2));
+
+    if(device_config_xml_.length()) {
+        percipio_device->setDeviceConfig(device_config_xml_);
+    }
     
     percipio_camera_node_ = std::make_unique<PercipioCameraNode>(this, percipio_device);
     return true;

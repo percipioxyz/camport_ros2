@@ -260,6 +260,56 @@ void GigEBase::video_mode_init()
     }
 }
 
+static std::string WrapXML(const std::string& xml) {
+    return std::string("<root>") + xml + "</root>";
+}
+
+static inline std::string xml_key_trim(const std::string& str) {
+    auto start = str.find_first_not_of(' ');
+    auto end = str.find_last_not_of(' ');
+    return str.substr(start, end - start + 1);
+}
+
+int GigEBase::parse_xml_parameters(const std::string& xml)
+{
+    parameters.clear();
+    std::string wrappedXML = WrapXML(xml);
+    tinyxml2::XMLError err = m_doc.Parse(wrappedXML.c_str());
+    if( err != tinyxml2::XML_SUCCESS ){
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "xml parse failed");
+        return -1;
+    }
+  
+    tinyxml2::XMLElement* m_root = m_doc.RootElement();
+    if(!m_root){
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "found no root element");
+        return -1;
+    }
+  
+    for(auto elemSource = m_root->FirstChildElement("source"); 
+                elemSource != NULL; elemSource = elemSource->NextSiblingElement("source")) {
+        auto str = elemSource->Attribute("name");
+        if(!str) continue;
+      
+        std::string source = xml_key_trim(std::string(str));
+        for(auto elemFeat = elemSource->FirstChildElement("feature");
+                elemFeat != NULL; elemFeat = elemFeat->NextSiblingElement("feature")) {
+            
+            auto sub_str = elemFeat->Attribute("name");
+            auto text = elemFeat->GetText();
+            if(sub_str && text) {
+                std::string feat_name = xml_key_trim(std::string(sub_str));
+                std::string val = xml_key_trim(std::string(text));
+                parameters[source].push_back({feat_name, val});
+            }
+        }
+    }
+
+    device_load_parameters();
+
+    return 0;
+}
+
 //percipio camera 初始化，打开相机,配置参数,使能数据流
 PercipioDevice::PercipioDevice(const char* faceId, const char* deviceId)
     : alive(false),
@@ -389,10 +439,6 @@ PercipioDevice::~PercipioDevice()
     hIface = nullptr;
 }
 
-
-
-
-
 bool PercipioDevice::isAlive()
 {
     return alive;
@@ -417,6 +463,12 @@ void PercipioDevice::registerCameraEventCallback(PercipioDeviceEventCallbackFunc
        _event_callback = callback;
         TYRegisterEventCallback(handle, eventCallback, this);
    }
+}
+
+void PercipioDevice::setDeviceConfig(const std::string& config_xml)
+{
+    //TODO..
+    m_gige_dev->parse_xml_parameters(config_xml);
 }
 
 //相机 serial number
@@ -580,8 +632,7 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
     if(VideoModeList.size()) {
         for(auto video_mode : VideoModeList) {
             if(valid_resolution) {
-                if(img_width != video_mode.width ||
-                   img_height != video_mode.height) {
+                if(img_width != video_mode.width || img_height != video_mode.height) {
                     continue;
                 }
             }

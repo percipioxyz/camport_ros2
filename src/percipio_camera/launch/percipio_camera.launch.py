@@ -1,16 +1,139 @@
 from launch import LaunchDescription
-from launch.actions import GroupAction
+from launch.actions import GroupAction, DeclareLaunchArgument, OpaqueFunction
 from launch_ros.actions import PushRosNamespace
-from launch.actions import DeclareLaunchArgument
 from launch_ros.descriptions import ComposableNode
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import ComposableNodeContainer
+from launch_ros.substitutions import FindPackageShare
+import os
+
+def launch_setup(context, *args, **kwargs):
+    param_file = PathJoinSubstitution([
+        FindPackageShare('percipio_camera'),
+        'launch/parameters.xml'
+    ]).perform(context)
+
+    # read xml
+    if os.path.exists(param_file):
+        with open(param_file, 'r') as f:
+            xml_content = f.read()
+    else:
+        xml_content = ""  # clear
+        print(f"Warning: Parameter file not found: {param_file}")
+    
+    parameters = {}
+    
+    bool_params = [
+        'device_log_enable',
+        'device_auto_reconnect',
+        'color_enable',
+        'depth_enable',
+        'depth_registration_enable',
+        'depth_speckle_filter',
+        'depth_time_domain_filter',
+        'point_cloud_enable',
+        'color_point_cloud_enable',
+        'left_ir_enable'
+    ]
+    
+    int_params = [
+        'device_log_server_port',
+        'max_speckle_size',
+        'max_speckle_diff',
+        'depth_time_domain_num',
+        'tof_modulation_threshold',
+        'tof_jitter_threshold',
+        'tof_filter_threshold',
+        'tof_channel',
+        'tof_HDR_ratio'
+    ]
+    
+    float_params = [
+        'max_physical_size'
+    ]
+    
+    for arg in args_list:
+        param_name = arg.name
+        param_value = LaunchConfiguration(param_name).perform(context)
+        
+        if isinstance(param_value, str) and param_value.startswith('"') and param_value.endswith('"'):
+            param_value = param_value[1:-1]
+        
+        if param_name in bool_params:
+            if param_value.lower() in ['true', '1', 'yes', 'on']:
+                parameters[param_name] = True
+            elif param_value.lower() in ['false', '0', 'no', 'off']:
+                parameters[param_name] = False
+            else:
+                default_value = arg.default_value[0].perform(context) if hasattr(arg.default_value, '__getitem__') else str(arg.default_value)
+                if default_value.lower() in ['true', '1', 'yes', 'on']:
+                    parameters[param_name] = True
+                else:
+                    parameters[param_name] = False
+                print(f"Warning: Could not convert {param_name}='{param_value}' to boolean, using default: {parameters[param_name]}")
+        
+        elif param_name in int_params:
+            try:
+                parameters[param_name] = int(param_value)
+            except ValueError:
+                try:
+                    default_value = arg.default_value[0].perform(context) if hasattr(arg.default_value, '__getitem__') else str(arg.default_value)
+                    parameters[param_name] = int(default_value)
+                except:
+                    parameters[param_name] = 0
+                print(f"Warning: Could not convert {param_name}='{param_value}' to integer, using default: {parameters[param_name]}")
+        
+        elif param_name in float_params:
+            try:
+                parameters[param_name] = float(param_value)
+            except ValueError:
+                try:
+                    default_value = arg.default_value[0].perform(context) if hasattr(arg.default_value, '__getitem__') else str(arg.default_value)
+                    parameters[param_name] = float(default_value)
+                except:
+                    parameters[param_name] = 0.0
+                print(f"Warning: Could not convert {param_name}='{param_value}' to float, using default: {parameters[param_name]}")
+        
+        else:
+            parameters[param_name] = param_value
+    
+    parameters['camera_parameter'] = xml_content
+    
+    compose_node = ComposableNode(
+        package='percipio_camera',
+        plugin='percipio_camera::PercipioCameraNodeDriver',
+        name=parameters.get('camera_name', 'camera'),
+        namespace='',
+        parameters=[parameters],
+    )
+    
+    container = ComposableNodeContainer(
+        name='camera_container',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container',
+        composable_node_descriptions=[
+            compose_node,
+        ],
+        output='screen',
+    )
+    
+    return [
+        GroupAction([
+            PushRosNamespace(parameters.get('camera_name', 'camera')),
+            container
+        ])
+    ]
+
+args_list = []
 
 def generate_launch_description():
+    global args_list
+    
     # Declare arguments
-    args = [
+    args_list = [
         DeclareLaunchArgument('camera_name', default_value='camera'),
-        DeclareLaunchArgument('serial_number', default_value='""'),
+        DeclareLaunchArgument('serial_number', default_value=''),
         DeclareLaunchArgument('device_ip', default_value=''),
 
         # Device log configuration
@@ -24,8 +147,7 @@ def generate_launch_description():
         DeclareLaunchArgument('device_workmode', default_value='trigger_off'),#trigger_off / trigger_soft / trigger_hard
 
         # Enable the network packet retransmission function
-        # If device workmode is in trigger mode, this feature will be automatically forced on
-        DeclareLaunchArgument('gvsp_resend', default_value='false'),
+        # DeclareLaunchArgument('gvsp_resend', default_value='false'),
 
         # Enable device auto try reconnect while offline
         # You can refer to the example file "offline_detect.py" to detect camera offline events, regardless of whether this switch is turned on or off.
@@ -33,24 +155,24 @@ def generate_launch_description():
 
         # Enable rgb stream output
         DeclareLaunchArgument('color_enable', default_value='true'),
-        DeclareLaunchArgument('color_resolution', default_value='"640x480"'),
+        DeclareLaunchArgument('color_resolution', default_value='640x480'),
         #format list:yuv / jpeg / bayer / mono...
-        #DeclareLaunchArgument('color_format', default_value='"yuv"'),
+        #DeclareLaunchArgument('color_format', default_value='yuv'),
 
         
         # Used to set the area of interest for color camera auto exposure
         # This setting requires that the camera itself supports this feature, otherwise the setting is invalid
         #DeclareLaunchArgument('color_aec_roi', default_value='0.0.1280.960'),
-        
+
         DeclareLaunchArgument('color_qos', default_value='default'),
         DeclareLaunchArgument('color_camera_info_qos', default_value='default'),
 
         # Enable depth stream output
         DeclareLaunchArgument('depth_enable', default_value='true'),
-        DeclareLaunchArgument('depth_resolution', default_value='"640x400"'),
+        DeclareLaunchArgument('depth_resolution', default_value='640x400'),
 
         #format list:depth16/xyz48...
-        #DeclareLaunchArgument('depth_format', default_value='"xyz48"'),
+        #DeclareLaunchArgument('depth_format', default_value='xyz48'),
 
         DeclareLaunchArgument('depth_qos', default_value='default'),
         DeclareLaunchArgument('depth_camera_info_qos', default_value='default'),
@@ -86,43 +208,13 @@ def generate_launch_description():
         DeclareLaunchArgument('left_ir_camera_info_qos', default_value='default'),
 
         #Tof camera features
-        DeclareLaunchArgument('tof_depth_quality', default_value='medium'),  #basic / medium / high
+        DeclareLaunchArgument('tof_depth_quality', default_value='medium'), #basic / medium / high
         DeclareLaunchArgument('tof_modulation_threshold', default_value='-1'),
         DeclareLaunchArgument('tof_jitter_threshold', default_value='-1'),
-		DeclareLaunchArgument('tof_filter_threshold', default_value='-1'),
+        DeclareLaunchArgument('tof_filter_threshold', default_value='-1'),
         DeclareLaunchArgument('tof_channel', default_value='-1'),
         DeclareLaunchArgument('tof_HDR_ratio', default_value='-1'),
-
     ]
 
-    parameters = [{arg.name: LaunchConfiguration(arg.name)} for arg in args]
-
-    compose_node = ComposableNode(
-        package='percipio_camera',
-        plugin='percipio_camera::PercipioCameraNodeDriver',
-        name=LaunchConfiguration('camera_name'),
-        namespace='',
-        parameters=parameters,
-    )
-
-    container = ComposableNodeContainer(
-        name='camera_container',
-        namespace='',
-        package='rclcpp_components',
-        executable='component_container',
-        composable_node_descriptions=[
-            compose_node,
-        ],
-        output='screen',
-    )
-
-    ld = LaunchDescription(
-        args +
-        [
-            GroupAction([
-                PushRosNamespace(LaunchConfiguration('camera_name')),
-                container
-            ])
-        ]
-    )
+    ld = LaunchDescription(args_list + [OpaqueFunction(function=launch_setup)])
     return ld

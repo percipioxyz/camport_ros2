@@ -88,6 +88,7 @@ set(SOURCE_FILES
   src/percipio_log_server.cpp
   src/gige_2_0.cpp
   src/gige_2_1.cpp
+  src/percipio_xml.cpp
   src/percipio_video_mode.cpp
   src/TYThread.cpp
   src/percipio_depth_algorithm.cpp

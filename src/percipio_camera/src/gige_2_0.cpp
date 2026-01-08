@@ -10,6 +10,72 @@ namespace percipio_camera {
 
 #define MAX_STORAGE_SIZE    (10*1024*1024)
 
+static std::map<std::string, TY_FEATURE_ID> m_gige_2_0_feature_map = {
+    {"TriggerDelay",                              TY_INT_TRIGGER_DELAY_US},
+
+    {"ExposureAuto",                              TY_BOOL_AUTO_EXPOSURE},
+    {"ExposureTime",                              TY_INT_EXPOSURE_TIME},
+    {"ExposureTargetBrightness",                  TY_INT_AE_TARGET_Y},
+    {"AnalogAll",                                 TY_INT_ANALOG_GAIN},
+    {"DigitalAll",                                TY_INT_GAIN},
+    {"DigitalRed",                                TY_INT_R_GAIN},
+    {"DigitalGreen",                              TY_INT_G_GAIN},
+    {"DigitalBlue",                               TY_INT_B_GAIN},
+    {"BalanceWhiteAuto",                          TY_BOOL_AUTO_AWB},
+
+    {"AutoFunctionAOIOffsetX",                    TY_STRUCT_AEC_ROI},
+    {"AutoFunctionAOIOffsetY",                    TY_STRUCT_AEC_ROI},
+    {"AutoFunctionAOIWidth",                      TY_STRUCT_AEC_ROI},
+    {"AutoFunctionAOIHeight",                     TY_STRUCT_AEC_ROI},
+
+    {"DepthScaleUnit",                            TY_FLOAT_SCALE_UNIT},
+    {"DepthSgbmImageNumber",                      TY_INT_SGBM_IMAGE_NUM},
+    {"DepthSgbmDisparityNumber",                  TY_INT_SGBM_DISPARITY_NUM},
+    {"DepthSgbmDisparityOffset",                  TY_INT_SGBM_DISPARITY_OFFSET},
+    {"DepthSgbmMatchWinHeight",                   TY_INT_SGBM_MATCH_WIN_HEIGHT},
+    {"DepthSgbmSemiParamP1",                      TY_INT_SGBM_SEMI_PARAM_P1},
+    {"DepthSgbmSemiParamP2",                      TY_INT_SGBM_SEMI_PARAM_P2},
+    {"DepthSgbmUniqueFactor",                     TY_INT_SGBM_UNIQUE_FACTOR},
+    {"DepthSgbmUniqueAbsDiff",                    TY_INT_SGBM_UNIQUE_ABSDIFF},
+    {"DepthSgbmUniqueMaxCost",                    TY_INT_SGBM_UNIQUE_MAX_COST},
+    {"DepthSgbmHFilterHalfWin",                   TY_BOOL_SGBM_HFILTER_HALF_WIN},
+    {"DepthSgbmMatchWinWidth",                    TY_INT_SGBM_MATCH_WIN_WIDTH},
+    {"DepthSgbmMedFilter",                        TY_BOOL_SGBM_MEDFILTER},
+    {"DepthSgbmLRC",                              TY_BOOL_SGBM_LRC},
+    {"DepthSgbmLRCDiff",                          TY_INT_SGBM_LRC_DIFF},
+    {"DepthSgbmMedFilterThresh",                  TY_INT_SGBM_MEDFILTER_THRESH},
+    {"DepthSgbmSemiParamP1Scale",                 TY_INT_SGBM_SEMI_PARAM_P1_SCALE},
+    {"DepthSgpmPhaseNumber",                      TY_INT_SGPM_PHASE_NUM},
+    {"DepthSgpmPhaseScale",                       TY_INT_SGPM_NORMAL_PHASE_SCALE},
+    {"DepthSgpmPhaseOffset",                      TY_INT_SGPM_NORMAL_PHASE_OFFSET},
+    {"DepthSgpmReferencePhaseScale",              TY_INT_SGPM_REF_PHASE_SCALE},
+    {"DepthSgpmReferencePhaseOffset",             TY_INT_SGPM_REF_PHASE_OFFSET},
+    {"DepthSgpmEpipolarConstraintPatternScale",   TY_INT_SGPM_REF_PHASE_SCALE},
+    {"DepthSgpmEpipolarConstraintPatternOffset",  TY_INT_SGPM_REF_PHASE_OFFSET},
+    {"DepthSgpmEpipolarConstraintEnable",         TY_BOOL_SGPM_EPI_EN},
+    {"DepthSgpmEpipolarConstraintChan0",          TY_INT_SGPM_EPI_CH0},
+    {"DepthSgpmEpipolarConstraintChan1",          TY_INT_SGPM_EPI_CH1},
+    {"DepthSgpmEpipolarConstraintThresh",         TY_INT_SGPM_EPI_THRESH},
+    {"DepthSgpmPhaseOrderFilterEnable",           TY_BOOL_SGPM_ORDER_FILTER_EN},
+    {"DepthSgpmPhaseOrderFilterChannel",          TY_INT_SGPM_ORDER_FILTER_CHN},
+    {"DepthRangeMin",                             TY_INT_DEPTH_MIN_MM},
+    {"DepthRangeMax",                             TY_INT_DEPTH_MAX_MM},
+    {"DepthSgbmTextureFilterValueOffset",         TY_INT_SGBM_TEXTURE_OFFSET},
+    {"DepthSgbmTextureFilterThreshold",           TY_INT_SGBM_TEXTURE_THRESH},
+
+    {"DepthStreamTofFilterThreshold",             TY_INT_FILTER_THRESHOLD},
+    {"DepthStreamTofChannel",                     TY_INT_TOF_CHANNEL},
+    {"DepthStreamTofModulationThreshold",         TY_INT_TOF_MODULATION_THRESHOLD},
+    {"DepthStreamTofDepthQuality",                TY_ENUM_DEPTH_QUALITY},
+    {"DepthStreamTofHdrRatio",                    TY_INT_TOF_HDR_RATIO},
+    {"DepthStreamTofJitterThreshold",             TY_INT_TOF_JITTER_THRESHOLD},
+
+    {"DepthStreamTofAntiSunlightIndex",           TY_INT_TOF_ANTI_SUNLIGHT_INDEX},
+    {"DepthStreamTofAntiInterference",            TY_BOOL_TOF_ANTI_INTERFERENCE},
+    {"DepthStreamTofSpeckleSize",                 TY_INT_MAX_SPECKLE_SIZE},
+    {"DepthStreamTofSpeckleDiff",                 TY_INT_MAX_SPECKLE_DIFF}
+};
+
 static bool isValidJsonString(const char* code)
 {
     std::string err;
@@ -65,6 +131,17 @@ TY_STATUS GigE_2_0::image_mode_cfg(const TY_COMPONENT_ID comp, const percipio_vi
 {
     TY_IMAGE_MODE image_enum_mode = TYImageMode2(mode.fmt, mode.width, mode.height);
     return TYSetEnum(hDevice, comp, TY_ENUM_IMAGE_MODE, image_enum_mode);
+}
+
+void GigE_2_0::device_load_parameters()
+{
+    for(auto& iter : parameters) {
+        for(auto& feat : iter.second) {
+            parameter_init(iter.first, feat.node_desc, feat.node_info);
+        }
+    }
+
+    return;
 }
 
 TY_STATUS GigE_2_0::stream_calib_data_init(const TY_COMPONENT_ID comp, TY_CAMERA_CALIB_INFO& calib_data)
@@ -255,4 +332,103 @@ bool GigE_2_0::load_default_parameter()
     return ret;
 }
 
+bool GigE_2_0::parameter_init(const std::string& source, const std::string& feat, const std::string& str_val)
+{
+    TY_STATUS status = TY_STATUS_OK;
+    TY_COMPONENT_ID comp = 0;
+    if(source == "Depth")
+        comp = TY_COMPONENT_DEPTH_CAM;
+    else if(source == "Texture")
+        comp = TY_COMPONENT_RGB_CAM;
+    else if(source == "Left")
+        comp = TY_COMPONENT_IR_CAM_LEFT;
+    else if(source == "Right")
+        comp = TY_COMPONENT_IR_CAM_RIGHT;
+    else if(source == "Device")
+        comp = TY_COMPONENT_DEVICE;
+    else if(source == "Laser")
+        comp = TY_COMPONENT_LASER;
+    else {
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Incorrect source name: " << source);
+        return false;
+    }
+
+    if(!(allComps & comp)) {
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Unsupported source name: " << source);
+        return false;
+    }
+
+    auto feature = m_gige_2_0_feature_map.find(feat);
+    if (feature == m_gige_2_0_feature_map.end()) {
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Unsupported feature name: " << feat);
+        return false;
+    }
+
+    TY_FEATURE_ID feat_id = feature->second;
+    TY_FEATURE_TYPE type = TYFeatureType(feat_id);
+    switch(type) {
+        case TY_FEATURE_INT: {
+            int32_t val = atoi(str_val.c_str());
+            status = TYSetInt(hDevice, comp, feat_id, val);
+            break;
+        }
+
+        case TY_FEATURE_ENUM: {
+            uint32_t val = static_cast<uint32_t>(atoi(str_val.c_str()));
+            status = TYSetEnum(hDevice, comp, feat_id, val);
+            break;
+        }
+
+        case TY_FEATURE_FLOAT: {
+            float val = static_cast<float>(atof(str_val.c_str()));
+            status = TYSetFloat(hDevice, comp, feat_id, val);
+            break;
+        }
+
+        case TY_FEATURE_BOOL: {
+            bool val = static_cast<bool>(atof(str_val.c_str()));
+            status = TYSetBool(hDevice, comp, feat_id, val);
+            break;
+        }
+    
+        case TY_FEATURE_STRING: {
+            status = TYSetString(hDevice, comp, feat_id, str_val.c_str());
+            break;
+        }
+
+        case TY_FEATURE_STRUCT: {
+            if(feat_id == TY_STRUCT_AEC_ROI) {
+                if(feat == "AutoFunctionAOIOffsetX") {
+                    aec_roi.x = static_cast<uint32_t>(atoi(str_val.c_str()));
+                } else if(feat == "AutoFunctionAOIOffsetY") {
+                    aec_roi.y = static_cast<uint32_t>(atoi(str_val.c_str()));
+                } else if(feat == "AutoFunctionAOIWidth") {
+                    aec_roi.w = static_cast<uint32_t>(atoi(str_val.c_str()));
+                } else if(feat == "AutoFunctionAOIHeight") {
+                    aec_roi.h = static_cast<uint32_t>(atoi(str_val.c_str()));
+                    status = TYSetStruct(hDevice, comp, feat_id, &aec_roi, sizeof(aec_roi));
+                } else {
+                    status = TY_STATUS_INVALID_FEATURE;
+                    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Unsupported feature type: " << feat << "(" << feat_id << ")");
+                }
+            } else {
+                status = TY_STATUS_INVALID_FEATURE;
+                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Unsupported feature type: " << feat << "(" << feat_id << ")");
+            }
+            break;
+        }
+    
+        default: {
+            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Unsupported feature type: " << feat << "(" << feat_id << ")");
+            return false;
+        }
+    }
+
+    if(status) {
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Xml parameter(" << source << ":" << feat << "(0x" << std::hex << feat_id << ")" << ") init failed(" << TYErrorString(status) << "(" << std::dec << status << ")");
+        return false;
+    }
+
+    return true;
+}
 }
