@@ -141,23 +141,32 @@ TY_STATUS GigE_2_1::image_mode_cfg(const TY_COMPONENT_ID comp, const percipio_vi
     return TYEnumSetValue(hDevice, "BinningHorizontal", mode.binning);
 }
 
-TY_STATUS GigE_2_1::work_mode_init(percipio_dev_workmode mode)
+TY_STATUS GigE_2_1::work_mode_init(percipio_dev_workmode mode, const bool fix_rate, const float rate)
 {
     TY_STATUS status = TY_STATUS_OK;
+    soft_frame_rate_ctrl_enable = false;
     switch(mode) {
         case CONTINUS: {
             status = TYEnumSetString(hDevice, "AcquisitionMode", "Continuous");
             if(status != TY_STATUS_OK) {
-                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Set AcquisitionMode error: " << status);
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to set AcquisitionMode to Continuous mode, error: " << status);
                 return status;
             }
 
-            TY_ACCESS_MODE access = 0;
-            status = TYParamGetAccess(hDevice, "AcquisitionFrameRateEnable", &access);
-            if((status == TY_STATUS_OK) && (access & TY_ACCESS_WRITABLE)) {
+            if(fix_rate) { //try fix frame rate
+                float f_real_frame_rate = rate;
+                status = fix_device_frame_rate(f_real_frame_rate);
+                if(status) {
+                    status = fix_device_frame_rate_in_soft_trigger_mode(f_real_frame_rate);
+                    if(status) {
+                        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "The device does not support the automatic fixed frame rate output mode.");
+                        return status;
+                    }
+                }
+            } else {
                 status = TYBooleanSetValue(hDevice, "AcquisitionFrameRateEnable", false);
                 if(status != TY_STATUS_OK) {
-                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Set AcquisitionFrameRateEnable error: " << status);
+                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to set AcquisitionFrameRateEnable to false, error: " << status);
                     return status;
                 }
             }
@@ -411,6 +420,71 @@ TY_STATUS GigE_2_1::color_stream_aec_roi_init(const TY_AEC_ROI_PARAM& ROI)
         return status;
     }
     
+    return TY_STATUS_OK;
+}
+
+TY_STATUS GigE_2_1::send_soft_trigger_signal()
+{
+    return TYCommandExec(hDevice, "TriggerSoftware");
+}
+
+TY_STATUS GigE_2_1::fix_device_frame_rate(float& rate)
+{
+    double min = 0, max = 0;
+    double target_fps = static_cast<double>(rate);
+    TY_STATUS status = TYFloatGetMin(hDevice, "AcquisitionFrameRate", &min);
+    if(status != TY_STATUS_OK) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to get minimum frame rate from device. error: " << status);
+        min = 1.0;
+    }
+    
+    status = TYFloatGetMax(hDevice, "AcquisitionFrameRate", &max);
+    if(status != TY_STATUS_OK) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to get maximum frame rate from device. error: " << status);
+        max = 30.0;
+    }
+    
+    if(target_fps < min) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Requested frame rate " << target_fps << " is below minimum " << min << ". Clamping to minimum.");
+        target_fps = min;
+    } else if(target_fps > max) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Requested frame rate " << target_fps << " exceeds maximum " << max << ". Clamping to maximum.");
+        target_fps = max;
+    }
+
+    status = TYFloatSetValue(hDevice, "AcquisitionFrameRate", target_fps);
+    if(status) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to set frame rate to " << target_fps << " FPS. error:" << status);
+    } else {
+        status = TYBooleanSetValue(hDevice, "AcquisitionFrameRateEnable", true);
+        if(status != TY_STATUS_OK) {
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to set AcquisitionFrameRateEnable to false, error: " << status);
+            return status;
+        }
+        rate = static_cast<float>(rate);
+    }
+
+    return status;
+}
+
+TY_STATUS GigE_2_1::fix_device_frame_rate_in_soft_trigger_mode(const float rate)
+{
+    TY_STATUS status = TYEnumSetString(hDevice, "AcquisitionMode", "SingleFrame");
+    if(status != TY_STATUS_OK) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to set AcquisitionMode to SingleFrame mode, error: " << status);
+        return status;
+    }
+
+    status = TYEnumSetString(hDevice, "TriggerSource", "Software");
+    if(status != TY_STATUS_OK) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to set TriggerSource to  Software, error: " << status);
+        return status;
+    }
+
+    RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Try using the software trigger mode to achieve fixed frame rate triggered output.");
+    soft_frame_rate_ctrl_enable = true;
+    soft_frame_rate = rate;
+
     return TY_STATUS_OK;
 }
 

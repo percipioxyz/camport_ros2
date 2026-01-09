@@ -122,7 +122,10 @@ public:
 
     virtual int parse_xml_parameters(const std::string& xml);
 
-    virtual TY_STATUS work_mode_init(percipio_dev_workmode mode) = 0;
+    virtual bool PeriodicSoftTriggerEnable() { return soft_frame_rate_ctrl_enable; }
+    virtual float PeriodicSoftTriggerFpS() { return soft_frame_rate; }
+
+    virtual TY_STATUS work_mode_init(percipio_dev_workmode mode, const bool fix_rate, const float rate) = 0;
 
     virtual void device_load_parameters() = 0;
 
@@ -138,6 +141,8 @@ public:
 
     virtual TY_STATUS color_stream_aec_roi_init(const TY_AEC_ROI_PARAM& ROI) = 0;
 
+    virtual TY_STATUS send_soft_trigger_signal() = 0;
+
     uint32_t streams() { return allComps;}
 public:
     PercipioVideoMode mVideoMode;
@@ -145,6 +150,9 @@ public:
 protected:
     TY_DEV_HANDLE hDevice;
     TY_COMPONENT_ID allComps = 0;
+
+    bool soft_frame_rate_ctrl_enable = false;
+    float soft_frame_rate = 5.f;
 
     tinyxml2::XMLDocument m_doc;
     percipio_feat_info parameters;
@@ -218,6 +226,8 @@ class PercipioDevice
         bool b_dev_auto_reconnect = false;
         bool reconnect = false;
 
+        percipio_dev_workmode workmode = CONTINUS;
+
         bool b_dev_frame_rate_ctrl_en = false;
         float f_dev_frame_rate = 5.f;
 
@@ -231,8 +241,6 @@ class PercipioDevice
 
         TY_DEVICE_BASE_INFO base_info;
         
-        percipio_dev_workmode workmode = CONTINUS;
-
         std::atomic_bool is_running_{false};
 
         FrameCallbackFunction  _callback;
@@ -267,9 +275,12 @@ class PercipioDevice
         image_intrinsic cam_leftir_intrinsic;
         image_intrinsic cam_rightir_intrinsic;
 
+        std::unique_ptr<std::thread> frame_rate_ctrl_thread_ = nullptr;
         std::unique_ptr<std::thread> frame_recive_thread_ = nullptr;
         std::unique_ptr<VideoStream> VideoStreamPtr = nullptr;
         std::vector<unsigned char> frameBuffer[2];
+
+        void softTriggerSend();
         void frameDataReceive();
 
         TY_STATUS device_open(const char* faceId, const char* deviceId);

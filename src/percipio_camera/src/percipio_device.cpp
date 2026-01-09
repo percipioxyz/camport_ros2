@@ -416,10 +416,10 @@ void PercipioDevice::Release()
 PercipioDevice::~PercipioDevice()
 {
     is_running_.store(false);
-
-    //if(workmode == SOFTTRIGGER) {
-    //    softtrigger_detect_cond.notify_one();
-    //}
+    if (frame_rate_ctrl_thread_ && frame_rate_ctrl_thread_->joinable()) {
+        frame_rate_ctrl_thread_->join();
+        frame_rate_ctrl_thread_ = nullptr;
+    }
 
     if (frame_recive_thread_ && frame_recive_thread_->joinable()) {
         frame_recive_thread_->join();
@@ -949,6 +949,33 @@ void PercipioDevice::device_offline_reconnect() {
     }
 }
 
+void PercipioDevice::softTriggerSend() {
+    const float fps = m_gige_dev->PeriodicSoftTriggerFpS();
+
+    while (rclcpp::ok() && is_running_.load()) {
+        int delay = (int)(1000 / fps);
+        uint64_t trig_before = getSystemTime();
+        TY_STATUS rc = m_gige_dev->send_soft_trigger_signal();
+        if(rc) {
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to send soft trigger signal!");
+        }
+        uint64_t trig_after = getSystemTime();
+
+        int trig_time = static_cast<int>(trig_after - trig_before);
+        int delt = delay > trig_time ? (delay - trig_time) : 0;
+
+        if(delt) {
+            if(delt<60)
+            {
+                delt=60;
+            }
+            MSLEEP(delt);
+        } else {
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Trigger signal timeout!");
+        }
+    }
+}
+
 void PercipioDevice::frameDataReceive() {
     TY_STATUS status;
     //m_softtrigger_ready = false;
@@ -976,12 +1003,12 @@ void PercipioDevice::frameDataReceive() {
         } else if(workmode == SOFTTRIGGER) {
             status = TYFetchFrame(handle, &frame, 200);
         } else {
-            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid workmode error: " << workmode);
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid workmode: " << workmode);
             status = TYFetchFrame(handle, &frame, 2000);
         }
 
         if(status == TY_STATUS_OK) {
-            int fps = fps_counter.get_fps();
+            float fps = fps_counter.get_fps();
             if(fps > 0) {
                 RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "fps = " << fps);
             }
@@ -1085,8 +1112,14 @@ void PercipioDevice::frameDataReceive() {
 //开启数据流
 bool PercipioDevice::stream_start()
 {
-    m_gige_dev->work_mode_init(workmode);
-
+    if(b_dev_frame_rate_ctrl_en) {
+        if(workmode != CONTINUS) {
+            workmode = CONTINUS;
+            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "The device has enabled the fixed frame rate output mode, the operating mode is force-switched to continuous output mode.");
+        }
+    }
+    m_gige_dev->work_mode_init(workmode, b_dev_frame_rate_ctrl_en, f_dev_frame_rate);
+    
     uint32_t frameSize;
     TY_STATUS status = TYGetFrameBufferSize(handle, &frameSize);
     if(status != TY_STATUS_OK) {
@@ -1106,6 +1139,10 @@ bool PercipioDevice::stream_start()
     }
 
     is_running_.store(true);
+    if(m_gige_dev->PeriodicSoftTriggerEnable()) {
+        frame_rate_ctrl_thread_ = std::make_unique<std::thread>([this]() { softTriggerSend(); });
+    }
+
     frame_recive_thread_ = std::make_unique<std::thread>([this]() { frameDataReceive(); });
 
     return true;
@@ -1119,9 +1156,10 @@ bool PercipioDevice::stream_stop()
     }
 
     is_running_.store(false);
-    //if(workmode == SOFTTRIGGER) {
-    //    softtrigger_detect_cond.notify_one();
-    //}
+    if (frame_rate_ctrl_thread_ && frame_rate_ctrl_thread_->joinable()) {
+        frame_rate_ctrl_thread_->join();
+        frame_rate_ctrl_thread_ = nullptr;
+    }
 
     if (frame_recive_thread_ && frame_recive_thread_->joinable()) {
         frame_recive_thread_->join();

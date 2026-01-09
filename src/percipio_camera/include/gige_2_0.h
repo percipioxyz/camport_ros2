@@ -13,7 +13,7 @@ public:
     virtual TY_STATUS dump_image_mode_list(const TY_COMPONENT_ID comp, std::vector<percipio_video_mode>& modes);
     virtual TY_STATUS image_mode_cfg(const TY_COMPONENT_ID comp, const percipio_video_mode& mode);
 
-    virtual TY_STATUS work_mode_init(percipio_dev_workmode mode);
+    virtual TY_STATUS work_mode_init(percipio_dev_workmode mode, const bool fix_rate, const float rate);
 
     virtual void device_load_parameters();
 
@@ -25,6 +25,7 @@ public:
 
     virtual TY_STATUS color_stream_aec_roi_init(const TY_AEC_ROI_PARAM& ROI);
 
+    virtual TY_STATUS send_soft_trigger_signal();
 private:
     TY_AEC_ROI_PARAM aec_roi;
     bool load_default_parameter();

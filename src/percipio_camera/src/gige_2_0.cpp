@@ -125,7 +125,7 @@ TY_STATUS GigE_2_0::image_mode_cfg(const TY_COMPONENT_ID comp, const percipio_vi
     return TYSetEnum(hDevice, comp, TY_ENUM_IMAGE_MODE, image_enum_mode);
 }
 
-TY_STATUS GigE_2_0::work_mode_init(percipio_dev_workmode mode)
+TY_STATUS GigE_2_0::work_mode_init(percipio_dev_workmode mode, const bool fix_rate, const float rate)
 {
     TY_STATUS status = TY_STATUS_OK;
     TY_TRIGGER_PARAM_EX trigger;
@@ -143,19 +143,39 @@ TY_STATUS GigE_2_0::work_mode_init(percipio_dev_workmode mode)
         }
     }
 
-    if(mode != CONTINUS) {
+    soft_frame_rate_ctrl_enable = false;
+    if(mode == CONTINUS) {
+        if(fix_rate) {
+            //try use m per mode
+            trigger.mode = TY_TRIGGER_MODE_M_PER;
+            trigger.fps = (int8_t)rate;
+            status = TYSetStruct(hDevice, TY_COMPONENT_DEVICE, TY_STRUCT_TRIGGER_PARAM_EX, &trigger, sizeof(trigger));
+            if(status != TY_STATUS_OK) {
+                trigger.mode = TY_TRIGGER_MODE_SLAVE;
+                status = TYSetStruct(hDevice, TY_COMPONENT_DEVICE, TY_STRUCT_TRIGGER_PARAM_EX, &trigger, sizeof(trigger));
+                if(status != TY_STATUS_OK) {
+                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "The device does not support the automatic fixed frame rate output mode.");
+                    return status;
+                } else {
+                    soft_frame_rate_ctrl_enable = true;
+                    soft_frame_rate = rate;
+                    RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Try using the software trigger mode to achieve fixed frame rate triggered output.");
+                }
+            }
+        } else {
+            //Clear trigger mdoe status
+            trigger.mode = TY_TRIGGER_MODE_OFF;
+            status = TYSetStruct(hDevice, TY_COMPONENT_DEVICE, TY_STRUCT_TRIGGER_PARAM_EX, &trigger, sizeof(trigger));
+            if(status != TY_STATUS_OK) { 
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Failed to set continue mode, error: " << status);
+                return status;
+            }
+        }
+    } else {
         trigger.mode = TY_TRIGGER_MODE_SLAVE;
         status = TYSetStruct(hDevice, TY_COMPONENT_DEVICE, TY_STRUCT_TRIGGER_PARAM_EX, &trigger, sizeof(trigger));
         if(status != TY_STATUS_OK) {
             RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Failed to set trigger mode, error: " << status);
-            return status;
-        }
-    } else {
-        //Clear trigger mdoe status
-        trigger.mode = TY_TRIGGER_MODE_OFF;
-        status = TYSetStruct(hDevice, TY_COMPONENT_DEVICE, TY_STRUCT_TRIGGER_PARAM_EX, &trigger, sizeof(trigger));
-        if(status != TY_STATUS_OK) { 
-            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Failed to set continue mode, error: " << status);
             return status;
         }
     }
@@ -221,6 +241,13 @@ TY_STATUS GigE_2_0::color_stream_aec_roi_init(const TY_AEC_ROI_PARAM& ROI)
     }
     
     return status;
+}
+
+TY_STATUS GigE_2_0::send_soft_trigger_signal()
+{
+    int err = TY_STATUS_OK;
+    while(TY_STATUS_BUSY == (err = TYSendSoftTrigger(hDevice)));
+    return err;
 }
 
 bool GigE_2_0::load_default_parameter()

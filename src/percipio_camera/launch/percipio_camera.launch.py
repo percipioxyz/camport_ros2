@@ -145,9 +145,9 @@ def generate_launch_description():
         DeclareLaunchArgument('device_log_server_port', default_value='9001'),
 
         # Whether to enable frame rate control for device output images
-        DeclareLaunchArgument('frame_rate_control', default_value='true'),
+        DeclareLaunchArgument('frame_rate_control', default_value='false'),
         #  Frame rate parameter for device output images (floating point number)
-        DeclareLaunchArgument('frame_rate', default_value='50.0'),
+        DeclareLaunchArgument('frame_rate', default_value='5.0'),
 
         # Setup device work mode
         # If using trigger_stoft mode, you can refer to the example file "send_trigger.py" to send soft trigger signal
