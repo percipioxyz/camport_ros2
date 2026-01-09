@@ -5,21 +5,21 @@ deb依赖项:
     ros-$ROS_DISTRO-diagnostic-updater
     ros-$ROS_DISTRO-diagnostic-msgs
 
-1.build project:
+1. build project:
     colcon build --event-handlers  console_direct+  --cmake-args  -DCMAKE_BUILD_TYPE=Release
 
-2.config system env:
+2. config system env:
     source ./install/setup.bash
 
-3.publish message:
+3. publish message:
     ros2 launch percipio_camera percipio_camera.launch.py
 
-4.list topics / services / parameters
+4. list topics / services / parameters
     ros2 topic list
     ros2 service list
     ros2 param list
 
-5.run rviz2:
+5. run rviz2:
   ros2 run rviz2 rviz2
   a.Create visualization by toptic
   b.Select Camera toptic:
@@ -33,3 +33,10 @@ deb依赖项:
         /camera/left_ir/image_raw
         /camera/right_ir/camera_info
         /camera/right_ir/image_raw
+
+
+6. list devices
+  ros2 run percipio_camera list_devices
+
+7. Set the IP info of the network device
+  ros2 run percipio_camera network_ip_config

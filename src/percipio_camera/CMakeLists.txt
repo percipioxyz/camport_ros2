@@ -111,6 +111,8 @@ endmacro()
 
 add_percipio_ros_executable(list_devices src/list_devices.cpp)
 
+add_percipio_ros_executable(network_ip_config src/network_ip_config.cpp)
+
 message(STATUS "PLC version: ${PLC_VERSION}")
 include_directories(${PCL_INCLUDE_DIRS})
 include_directories(${SOURCE_INCLUDES_DIR})
@@ -146,6 +148,9 @@ install(TARGETS ${PROJECT_NAME}
 )
 
 install(TARGETS list_devices
+  DESTINATION lib/${PROJECT_NAME}/)
+
+install(TARGETS network_ip_config
   DESTINATION lib/${PROJECT_NAME}/)
 
 ament_package()
