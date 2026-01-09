@@ -120,22 +120,13 @@ void PercipioCameraNode::getParameters() {
         optical_frame_id[index] = camera_name_ + "_" + stream_name[index] + "_optical_frame";
     }
 
-
-    std::string color_aec_roi_desc;
-    param_name_desc = "color_aec_roi";
-
-    setAndGetNodeParameter<std::string>(color_aec_roi_desc, param_name_desc, "");
-    if(color_aec_roi_desc.length()) {
-        int cnt = sscanf(color_aec_roi_desc.c_str(), "%d.%d.%d.%d", &roi[0], &roi[1], &roi[2], &roi[3]);
-        if(4 == cnt) b_enable_roi_aec = true;
-    }
-
-    //gvsp resend
-    setAndGetNodeParameter(m_gvsp_resend, "gvsp_resend", false);
-
     //device offline auto reconnection
     setAndGetNodeParameter(m_offline_auto_reconnection, "device_auto_reconnect", false);
 
+    //device  frame rate control
+    setAndGetNodeParameter(device_frame_rate_control, "frame_rate_control", false);
+    setAndGetNodeParameter<float>(device_frame_rate, "frame_rate", 5.0);
+    
     //laser power flag
     setAndGetNodeParameter(m_laser_power, "laser_power", -1);
 
@@ -158,13 +149,6 @@ void PercipioCameraNode::getParameters() {
     setAndGetNodeParameter(point_cloud_enable, "point_cloud_enable", true);
 
     setAndGetNodeParameter(color_point_cloud_enable, "color_point_cloud_enable", false);
-
-    setAndGetNodeParameter(tof_depth_quality, "tof_depth_quality", std::string(""));
-    setAndGetNodeParameter(m_tof_modulation_threshold, "tof_modulation_threshold", -1);
-    setAndGetNodeParameter(m_tof_jitter_threshold, "tof_jitter_threshold", -1);
-    setAndGetNodeParameter(m_tof_filter_threshold, "tof_filter_threshold", -1);
-    setAndGetNodeParameter(m_tof_channel, "tof_channel", -1);
-    setAndGetNodeParameter(m_tof_HDR_ratio, "tof_HDR_ratio", -1);
 
     if(color_point_cloud_enable)
         depth_registration_enable = true;
@@ -197,9 +181,9 @@ void PercipioCameraNode::setupDevices() {
         stream_enable[RIGHT_IR_STREAM] = false;
     }
 
-    device_ptr->enable_gvsp_resend(m_gvsp_resend);
-
     device_ptr->enable_offline_reconnect(m_offline_auto_reconnection);
+
+    device_ptr->frame_rate_init(device_frame_rate_control, device_frame_rate);
 
     if(m_laser_power >= 0)
         device_ptr->set_laser_power(m_laser_power);
@@ -219,28 +203,6 @@ void PercipioCameraNode::setupDevices() {
             }
         }
     }
-
-    if(stream_enable[COLOR_STREAM] && b_enable_roi_aec) {
-        device_ptr->update_color_aec_roi(roi[0], roi[1], roi[2], roi[3]);
-    }
-    
-    if(!tof_depth_quality.empty())
-        device_ptr->set_tof_depth_quality(tof_depth_quality);
-
-    if(m_tof_modulation_threshold >= 0)
-        device_ptr->set_tof_modulation_threshold(m_tof_modulation_threshold);
-
-    if(m_tof_jitter_threshold >= 0)
-        device_ptr->set_tof_jitter_threshold(m_tof_jitter_threshold);
-
-    if(m_tof_filter_threshold >= 0)
-        device_ptr->set_tof_filter_threshold(m_tof_filter_threshold);
-
-    if(m_tof_channel >= 0)
-        device_ptr->set_tof_channel(m_tof_channel);
-
-    if(m_tof_HDR_ratio >= 0)
-        device_ptr->set_tof_HDR_ratio(m_tof_HDR_ratio);
 
     if (!stream_enable[COLOR_STREAM]) {
         color_point_cloud_enable = false;
@@ -270,7 +232,7 @@ void PercipioCameraNode::startStreams() {
     device_ptr->stream_start();
 }
 
-void PercipioCameraNode::topic_callback(const std_msgs::msg::String::SharedPtr msg) const
+void PercipioCameraNode::topic_softtrigger_callback(const std_msgs::msg::String::SharedPtr msg) const
 {
     RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "    got Event: '%s'", msg->data.c_str());
     if(msg->data.find("SoftTrigger") == 0) {
@@ -278,10 +240,21 @@ void PercipioCameraNode::topic_callback(const std_msgs::msg::String::SharedPtr m
     }
 }
 
+void PercipioCameraNode::topic_dynamic_config_callback(const std_msgs::msg::String::SharedPtr msg) const
+{
+    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "    got Event: '%s'", msg->data.c_str());
+    device_ptr->setDeviceConfig(msg->data);
+}
+
 void PercipioCameraNode::setupSubscribers() {
     trigger_event_subscriber_ = node_->create_subscription<std_msgs::msg::String>(
             "trigger_event", rclcpp::SensorDataQoS(),
-            std::bind(&PercipioCameraNode::topic_callback, this, std::placeholders::_1));
+            std::bind(&PercipioCameraNode::topic_softtrigger_callback, this, std::placeholders::_1));
+
+    
+    config_event_subscriber_ = node_->create_subscription<std_msgs::msg::String>(
+            "dynamic_config", rclcpp::SensorDataQoS(),
+            std::bind(&PercipioCameraNode::topic_dynamic_config_callback, this, std::placeholders::_1));
 }
 
 void PercipioCameraNode::setupPublishers() {  
@@ -558,6 +531,7 @@ void PercipioCameraNode::publishColorPointCloud(percipio_camera::VideoStream& st
                 ++iter_g;
                 ++iter_b;
                 ++valid_count;
+            } else {
             }
         }
     }
@@ -571,6 +545,7 @@ void PercipioCameraNode::publishColorPointCloud(percipio_camera::VideoStream& st
     color_point_cloud_pub_->publish(std::move(point_cloud_msg));
 }
 
+#define PUBLISH_INVALID_POINT_CLOUD_DATA
 void PercipioCameraNode::publishPointCloud(percipio_camera::VideoStream& stream)
 {
     bool has_subscriber = point_cloud_pub_->get_subscription_count() > 0;
@@ -615,6 +590,17 @@ void PercipioCameraNode::publishPointCloud(percipio_camera::VideoStream& stream)
                 ++iter_y;
                 ++iter_z;
                 ++valid_count;
+            } else {
+#ifdef PUBLISH_INVALID_POINT_CLOUD_DATA
+                *iter_x = 0;
+                *iter_y = 0;
+                *iter_z = 0;
+
+                ++iter_x;
+                ++iter_y;
+                ++iter_z;
+                ++valid_count;
+#endif
             }
         }
     }

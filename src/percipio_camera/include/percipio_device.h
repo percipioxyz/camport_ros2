@@ -122,6 +122,8 @@ public:
 
     virtual int parse_xml_parameters(const std::string& xml);
 
+    virtual TY_STATUS work_mode_init(percipio_dev_workmode mode) = 0;
+
     virtual void device_load_parameters() = 0;
 
     virtual TY_STATUS dump_image_mode_list(const TY_COMPONENT_ID comp, std::vector<percipio_video_mode>& modes) = 0;
@@ -135,14 +137,6 @@ public:
     virtual TY_STATUS depth_scale_unit_init(float& dept_scale_unit) = 0;
 
     virtual TY_STATUS color_stream_aec_roi_init(const TY_AEC_ROI_PARAM& ROI) = 0;
-
-    virtual TY_STATUS set_tof_depth_quality(const std::string& qua) = 0;
-    virtual TY_STATUS set_tof_modulation_threshold(int threshold) = 0;
-    virtual TY_STATUS set_tof_jitter_threshold(int threshold) = 0;
-    virtual TY_STATUS set_tof_filter_threshold(int threshold) = 0;
-    virtual TY_STATUS set_tof_channel(int chan) = 0;
-    virtual TY_STATUS set_tof_HDR_ratio(int ratio) = 0;
-
 
     uint32_t streams() { return allComps;}
 public:
@@ -185,15 +179,14 @@ class PercipioDevice
 
         std::unique_ptr<GigEBase> m_gige_dev;
 
-        void enable_gvsp_resend(const bool en);
-
         void enable_offline_reconnect(const bool en);
+
+        void frame_rate_init(const bool en, const float fps);
 
         bool set_laser_power(const int power);
         
         float getDepthValueScale();
         
-        bool update_color_aec_roi(int x, int y , int w, int h);
         bool stream_open(const percipio_stream_index_pair& idx, const std::string& resolution, const std::string& format);
         bool stream_close(const percipio_stream_index_pair& idx);
         bool stream_start();
@@ -217,27 +210,20 @@ class PercipioDevice
 
         TY_EVENT_INFO device_ros_event;
 
-        TY_STATUS set_tof_depth_quality(const std::string& qua) { return m_gige_dev->set_tof_depth_quality(qua); };
-        TY_STATUS set_tof_modulation_threshold(int threshold) { return m_gige_dev->set_tof_modulation_threshold(threshold); };
-        TY_STATUS set_tof_jitter_threshold(int threshold) { return m_gige_dev->set_tof_jitter_threshold(threshold); };
-        TY_STATUS set_tof_filter_threshold(int threshold) { return m_gige_dev->set_tof_filter_threshold(threshold); };
-        TY_STATUS set_tof_channel(int chan) { return m_gige_dev->set_tof_channel(chan); };
-        TY_STATUS set_tof_HDR_ratio(int ratio) { return m_gige_dev->set_tof_HDR_ratio(ratio); };
-
     private:
         PercipioCameraNode* _node;
 
         GigEVersion  gige_version = GigeE_2_0;
 
-        bool b_packet_resend_en = false;
         bool b_dev_auto_reconnect = false;
         bool reconnect = false;
+
+        bool b_dev_frame_rate_ctrl_en = false;
+        float f_dev_frame_rate = 5.f;
+
         std::string strFaceId;
         std::string strDeviceId;
         std::vector<percipio_stream_property> m_streams;
-
-        TY_AEC_ROI_PARAM ROI;
-        bool enable_rgb_aec_roi = false;
 
         bool alive;
         TY_INTERFACE_HANDLE hIface;

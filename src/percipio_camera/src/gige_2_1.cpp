@@ -40,7 +40,7 @@ TY_STATUS GigE_2_1::init()
 {
     TY_STATUS status = TYEnumSetString(hDevice, "DeviceTimeSyncMode", "SyncTypeHost");
     if(status != TY_STATUS_OK) {
-        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Set time sync type(host) err : " << status);
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Set time sync type(host) error: " << status);
     }
 
     video_mode_init();
@@ -139,6 +139,63 @@ TY_STATUS GigE_2_1::image_mode_cfg(const TY_COMPONENT_ID comp, const percipio_vi
     if(ret) return ret;
 
     return TYEnumSetValue(hDevice, "BinningHorizontal", mode.binning);
+}
+
+TY_STATUS GigE_2_1::work_mode_init(percipio_dev_workmode mode)
+{
+    TY_STATUS status = TY_STATUS_OK;
+    switch(mode) {
+        case CONTINUS: {
+            status = TYEnumSetString(hDevice, "AcquisitionMode", "Continuous");
+            if(status != TY_STATUS_OK) {
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Set AcquisitionMode error: " << status);
+                return status;
+            }
+
+            TY_ACCESS_MODE access = 0;
+            status = TYParamGetAccess(hDevice, "AcquisitionFrameRateEnable", &access);
+            if((status == TY_STATUS_OK) && (access & TY_ACCESS_WRITABLE)) {
+                status = TYBooleanSetValue(hDevice, "AcquisitionFrameRateEnable", false);
+                if(status != TY_STATUS_OK) {
+                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Set AcquisitionFrameRateEnable error: " << status);
+                    return status;
+                }
+            }
+            break;
+        }
+        case SOFTTRIGGER: {
+            status = TYEnumSetString(hDevice, "AcquisitionMode", "SingleFrame");
+            if(status != TY_STATUS_OK) {
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Set AcquisitionMode error: " << status);
+                return status;
+            }
+
+            status = TYEnumSetString(hDevice, "TriggerSource", "Software");
+            if(status != TY_STATUS_OK) {
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Set TriggerSource to  Software error: " << status);
+                return status;
+            }
+            break;
+        }
+        case HARDTRIGGER: {
+            status = TYEnumSetString(hDevice, "AcquisitionMode", "SingleFrame");
+            if(status != TY_STATUS_OK) {
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Set AcquisitionMode error: " << status);
+                return status;
+            }
+
+            status = TYEnumSetString(hDevice, "TriggerSource", "Line0");
+            if(status != TY_STATUS_OK) {
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Set TriggerSource to  Line0 error: " << status);
+                return status;
+            }
+            break;
+        }
+        default: {
+            return TY_STATUS_INVALID_PARAMETER;
+        }
+    }
+    return TY_STATUS_OK;
 }
 
 void GigE_2_1::device_load_parameters()
@@ -355,36 +412,6 @@ TY_STATUS GigE_2_1::color_stream_aec_roi_init(const TY_AEC_ROI_PARAM& ROI)
     }
     
     return TY_STATUS_OK;
-}
-
-TY_STATUS GigE_2_1::set_tof_depth_quality(const std::string& qua)
-{
-    return TY_STATUS_NOT_PERMITTED;
-}
-
-TY_STATUS GigE_2_1::set_tof_modulation_threshold(int threshold)
-{
-    return TY_STATUS_NOT_PERMITTED;
-}
-
-TY_STATUS GigE_2_1::set_tof_jitter_threshold(int threshold)
-{
-    return TY_STATUS_NOT_PERMITTED;
-}
-
-TY_STATUS GigE_2_1::set_tof_filter_threshold(int threshold)
-{
-    return TY_STATUS_NOT_PERMITTED;
-}
-
-TY_STATUS GigE_2_1::set_tof_channel(int chan)
-{
-    return TY_STATUS_NOT_PERMITTED;
-}
-
-TY_STATUS GigE_2_1::set_tof_HDR_ratio(int ratio)
-{
-    return TY_STATUS_NOT_PERMITTED;
 }
 
 }

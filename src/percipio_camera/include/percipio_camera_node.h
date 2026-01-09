@@ -79,8 +79,11 @@ class PercipioCameraNode {
 
         rclcpp::Publisher<std_msgs::msg::String>::SharedPtr device_event_publisher_;
 
-        void topic_callback(const std_msgs::msg::String::SharedPtr msg) const;
+        void topic_softtrigger_callback(const std_msgs::msg::String::SharedPtr msg) const;
         rclcpp::Subscription<std_msgs::msg::String>::SharedPtr trigger_event_subscriber_;
+
+        void topic_dynamic_config_callback(const std_msgs::msg::String::SharedPtr msg) const;
+        rclcpp::Subscription<std_msgs::msg::String>::SharedPtr config_event_subscriber_;
         
         rclcpp::TimerBase::SharedPtr timer_ = nullptr;
         void broadcast_timer_callback();
@@ -89,9 +92,11 @@ class PercipioCameraNode {
         std::map<percipio_stream_index_pair, std::string>   camera_info_qos_;
         std::string point_cloud_qos;
 
-        bool m_gvsp_resend = false;
-
         bool m_offline_auto_reconnection = false;
+
+        bool device_frame_rate_control = false;
+        float device_frame_rate = 5.0;
+
 
         bool point_cloud_enable = true;
         bool color_point_cloud_enable = false;
@@ -110,14 +115,6 @@ class PercipioCameraNode {
 
         int roi[4];
         bool b_enable_roi_aec = false;
-
-        //Tof camera parameters
-        std::string tof_depth_quality = "";
-        int m_tof_modulation_threshold = -1;
-        int m_tof_jitter_threshold = -1;
-        int m_tof_filter_threshold = -1;
-        int m_tof_channel = -1;
-        int m_tof_HDR_ratio = -1;
 
         float f_depth_scale = 1.f;
 

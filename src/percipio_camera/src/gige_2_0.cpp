@@ -84,14 +84,6 @@ static bool isValidJsonString(const char* code)
     return true;
 }
 
-static uint32_t depth_qua_desc_to_enum(const std::string& qua)
-{
-    if(qua == "basic") return TY_DEPTH_QUALITY_BASIC;
-    else if(qua == "medium") return TY_DEPTH_QUALITY_MEDIUM;
-    else if(qua == "high") return TY_DEPTH_QUALITY_HIGH;
-    else return TY_DEPTH_QUALITY_MEDIUM;
-}
-
 GigE_2_0::GigE_2_0(const TY_DEV_HANDLE dev) : GigEBase(dev)
 {
     TYGetComponentIDs(hDevice, &allComps);
@@ -102,7 +94,7 @@ TY_STATUS GigE_2_0::init()
 {
     TY_STATUS status = TYSetEnum(hDevice, TY_COMPONENT_DEVICE, TY_ENUM_TIME_SYNC_TYPE, TY_TIME_SYNC_TYPE_HOST);
     if(status != TY_STATUS_OK) {
-        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Set time sync type(host) err : " << status);
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Set time sync type(host) error: " << status);
     }
     load_default_parameter();
     
@@ -133,6 +125,44 @@ TY_STATUS GigE_2_0::image_mode_cfg(const TY_COMPONENT_ID comp, const percipio_vi
     return TYSetEnum(hDevice, comp, TY_ENUM_IMAGE_MODE, image_enum_mode);
 }
 
+TY_STATUS GigE_2_0::work_mode_init(percipio_dev_workmode mode)
+{
+    TY_STATUS status = TY_STATUS_OK;
+    TY_TRIGGER_PARAM_EX trigger;
+
+    bool has_resend = false;
+    status = TYHasFeature(hDevice, TY_COMPONENT_DEVICE, TY_BOOL_GVSP_RESEND, &has_resend);
+    if(status) {
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Stream Resend ignore" << status);
+    } else {
+        if(has_resend) {
+            status = TYSetBool(hDevice, TY_COMPONENT_DEVICE, TY_BOOL_GVSP_RESEND, true);
+            if(status) {
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Failed to enable stream resend, error: " << status);
+            }
+        }
+    }
+
+    if(mode != CONTINUS) {
+        trigger.mode = TY_TRIGGER_MODE_SLAVE;
+        status = TYSetStruct(hDevice, TY_COMPONENT_DEVICE, TY_STRUCT_TRIGGER_PARAM_EX, &trigger, sizeof(trigger));
+        if(status != TY_STATUS_OK) {
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Failed to set trigger mode, error: " << status);
+            return status;
+        }
+    } else {
+        //Clear trigger mdoe status
+        trigger.mode = TY_TRIGGER_MODE_OFF;
+        status = TYSetStruct(hDevice, TY_COMPONENT_DEVICE, TY_STRUCT_TRIGGER_PARAM_EX, &trigger, sizeof(trigger));
+        if(status != TY_STATUS_OK) { 
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Failed to set continue mode, error: " << status);
+            return status;
+        }
+    }
+
+    return TY_STATUS_OK;
+}
+
 void GigE_2_0::device_load_parameters()
 {
     for(auto& iter : parameters) {
@@ -153,7 +183,7 @@ void GigE_2_0::depth_stream_distortion_check(bool& has_undist_data)
 {
     has_undist_data = false;
     TY_STATUS ret = TYHasFeature(hDevice, TY_COMPONENT_DEPTH_CAM, TY_STRUCT_CAM_DISTORTION, &has_undist_data);
-    RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Depth distortion calib data check ret:" << ret << "(" << has_undist_data << ")");
+    RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Depth distortion calib data check ret: " << ret << "(" << has_undist_data << ")");
 }
 
 TY_STATUS GigE_2_0::depth_scale_unit_init(float& dept_scale_unit)
@@ -191,62 +221,6 @@ TY_STATUS GigE_2_0::color_stream_aec_roi_init(const TY_AEC_ROI_PARAM& ROI)
     }
     
     return status;
-}
-
-TY_STATUS GigE_2_0::set_tof_depth_quality(const std::string& qua)
-{
-    bool has = false;
-    TY_STATUS status = TYHasFeature(hDevice, TY_COMPONENT_DEPTH_CAM, TY_ENUM_DEPTH_QUALITY, &has);
-    if(status != TY_STATUS_OK) return status;
-    if(!has) return TY_STATUS_NOT_PERMITTED;
-
-    uint32_t m_qua = depth_qua_desc_to_enum(qua);
-    return TYSetEnum(hDevice, TY_COMPONENT_DEPTH_CAM, TY_ENUM_DEPTH_QUALITY, m_qua);
-}
-
-TY_STATUS GigE_2_0::set_tof_modulation_threshold(int threshold)
-{
-    bool has = false;
-    TY_STATUS status = TYHasFeature(hDevice, TY_COMPONENT_DEPTH_CAM, TY_INT_TOF_MODULATION_THRESHOLD, &has);
-    if(status != TY_STATUS_OK) return status;
-    if(!has) return TY_STATUS_NOT_PERMITTED;
-    return TYSetInt(hDevice, TY_COMPONENT_DEPTH_CAM, TY_INT_TOF_MODULATION_THRESHOLD, threshold);
-}
-
-TY_STATUS GigE_2_0::set_tof_jitter_threshold(int threshold)
-{
-    bool has = false;
-    TY_STATUS status = TYHasFeature(hDevice, TY_COMPONENT_DEPTH_CAM, TY_INT_TOF_JITTER_THRESHOLD, &has);
-    if(status != TY_STATUS_OK) return status;
-    if(!has) return TY_STATUS_NOT_PERMITTED;
-    return TYSetInt(hDevice, TY_COMPONENT_DEPTH_CAM, TY_INT_TOF_JITTER_THRESHOLD, threshold);
-}
-
-TY_STATUS GigE_2_0::set_tof_filter_threshold(int threshold)
-{
-    bool has = false;
-    TY_STATUS status = TYHasFeature(hDevice, TY_COMPONENT_DEPTH_CAM, TY_INT_FILTER_THRESHOLD, &has);
-    if(status != TY_STATUS_OK) return status;
-    if(!has) return TY_STATUS_NOT_PERMITTED;
-    return TYSetInt(hDevice, TY_COMPONENT_DEPTH_CAM, TY_INT_FILTER_THRESHOLD, threshold);
-}
-
-TY_STATUS GigE_2_0::set_tof_channel(int chan)
-{
-    bool has = false;
-    TY_STATUS status = TYHasFeature(hDevice, TY_COMPONENT_DEPTH_CAM, TY_INT_TOF_CHANNEL, &has);
-    if(status != TY_STATUS_OK) return status;
-    if(!has) return TY_STATUS_NOT_PERMITTED;
-    return TYSetInt(hDevice, TY_COMPONENT_DEPTH_CAM, TY_INT_TOF_CHANNEL, chan);
-}
-
-TY_STATUS GigE_2_0::set_tof_HDR_ratio(int ratio)
-{
-    bool has = false;
-    TY_STATUS status = TYHasFeature(hDevice, TY_COMPONENT_DEPTH_CAM, TY_INT_TOF_HDR_RATIO, &has);
-    if(status != TY_STATUS_OK) return status;
-    if(!has) return TY_STATUS_NOT_PERMITTED;
-    return TYSetInt(hDevice, TY_COMPONENT_DEPTH_CAM, TY_INT_TOF_HDR_RATIO, ratio);
 }
 
 bool GigE_2_0::load_default_parameter()

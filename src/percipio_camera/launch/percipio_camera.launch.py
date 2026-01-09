@@ -25,6 +25,7 @@ def launch_setup(context, *args, **kwargs):
     
     bool_params = [
         'device_log_enable',
+        'frame_rate_control',
         'device_auto_reconnect',
         'color_enable',
         'depth_enable',
@@ -49,6 +50,7 @@ def launch_setup(context, *args, **kwargs):
     ]
     
     float_params = [
+        'frame_rate',
         'max_physical_size'
     ]
     
@@ -142,8 +144,14 @@ def generate_launch_description():
         DeclareLaunchArgument('device_log_level', default_value='WARNING'),
         DeclareLaunchArgument('device_log_server_port', default_value='9001'),
 
+        # Whether to enable frame rate control for device output images
+        DeclareLaunchArgument('frame_rate_control', default_value='true'),
+        #  Frame rate parameter for device output images (floating point number)
+        DeclareLaunchArgument('frame_rate', default_value='50.0'),
+
         # Setup device work mode
         # If using trigger_stoft mode, you can refer to the example file "send_trigger.py" to send soft trigger signal
+        # If frame_rate_control is enabled, then trigger_mode will be deactivated.-->
         DeclareLaunchArgument('device_workmode', default_value='trigger_off'),#trigger_off / trigger_soft / trigger_hard
 
         # Enable the network packet retransmission function
@@ -158,11 +166,6 @@ def generate_launch_description():
         DeclareLaunchArgument('color_resolution', default_value='640x480'),
         #format list:yuv / jpeg / bayer / mono...
         #DeclareLaunchArgument('color_format', default_value='yuv'),
-
-        
-        # Used to set the area of interest for color camera auto exposure
-        # This setting requires that the camera itself supports this feature, otherwise the setting is invalid
-        #DeclareLaunchArgument('color_aec_roi', default_value='0.0.1280.960'),
 
         DeclareLaunchArgument('color_qos', default_value='default'),
         DeclareLaunchArgument('color_camera_info_qos', default_value='default'),
@@ -206,14 +209,6 @@ def generate_launch_description():
         DeclareLaunchArgument('left_ir_enable', default_value='false'),
         DeclareLaunchArgument('left_ir_qos', default_value='default'),
         DeclareLaunchArgument('left_ir_camera_info_qos', default_value='default'),
-
-        #Tof camera features
-        DeclareLaunchArgument('tof_depth_quality', default_value='medium'), #basic / medium / high
-        DeclareLaunchArgument('tof_modulation_threshold', default_value='-1'),
-        DeclareLaunchArgument('tof_jitter_threshold', default_value='-1'),
-        DeclareLaunchArgument('tof_filter_threshold', default_value='-1'),
-        DeclareLaunchArgument('tof_channel', default_value='-1'),
-        DeclareLaunchArgument('tof_HDR_ratio', default_value='-1'),
     ]
 
     ld = LaunchDescription(args_list + [OpaqueFunction(function=launch_setup)])

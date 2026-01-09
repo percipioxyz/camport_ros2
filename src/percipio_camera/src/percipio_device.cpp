@@ -183,7 +183,7 @@ void GigEBase::video_mode_init()
         std::vector<percipio_video_mode> image_mode_list(0);
         dump_image_mode_list(TY_COMPONENT_RGB_CAM, image_mode_list);
         if(image_mode_list.size()) {
-            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "color stream:");
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "color stream: ");
             for(size_t i = 0; i < image_mode_list.size(); i++) {
                 int m_width = image_mode_list[i].width;
                 int m_height = image_mode_list[i].height;
@@ -203,7 +203,7 @@ void GigEBase::video_mode_init()
         std::vector<percipio_video_mode> image_mode_list(0);
         dump_image_mode_list(TY_COMPONENT_DEPTH_CAM, image_mode_list);
         if(image_mode_list.size()) {
-            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "depth stream:");
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "depth stream: ");
             for(size_t i = 0; i < image_mode_list.size(); i++) {
                 int m_width = image_mode_list[i].width;
                 int m_height = image_mode_list[i].height;
@@ -223,7 +223,7 @@ void GigEBase::video_mode_init()
         std::vector<percipio_video_mode> image_mode_list(0);
         dump_image_mode_list(TY_COMPONENT_IR_CAM_LEFT, image_mode_list);
         if(image_mode_list.size()) {
-            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "left-IR stream:");
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "left-IR stream: ");
             for(size_t i = 0; i < image_mode_list.size(); i++) {
                 int m_width = image_mode_list[i].width;
                 int m_height = image_mode_list[i].height;
@@ -243,7 +243,7 @@ void GigEBase::video_mode_init()
         std::vector<percipio_video_mode> image_mode_list(0);
         dump_image_mode_list(TY_COMPONENT_IR_CAM_RIGHT, image_mode_list);
         if(image_mode_list.size()) {
-            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "right-IR stream:");
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "right-IR stream: ");
             for(size_t i = 0; i < image_mode_list.size(); i++) {
                 int m_width = image_mode_list[i].width;
                 int m_height = image_mode_list[i].height;
@@ -520,12 +520,6 @@ bool PercipioDevice::hasRightIR()
             TY_COMPONENT_IR_CAM_RIGHT;
 }
 
-//packet resend enable
-void PercipioDevice::enable_gvsp_resend(const bool en)
-{
-    b_packet_resend_en = en;
-}
-
 //创建相机离线重现监测函数
 void PercipioDevice::enable_offline_reconnect(const bool en) 
 { 
@@ -535,6 +529,12 @@ void PercipioDevice::enable_offline_reconnect(const bool en)
     if(device_reconnect_thread)
         return;
     device_reconnect_thread = std::make_unique<std::thread>([this]() { device_offline_reconnect(); });
+}
+
+void PercipioDevice::frame_rate_init(const bool en, const float fps)
+{
+    b_dev_frame_rate_ctrl_en = en;
+    f_dev_frame_rate = fps;
 }
 
 //laser亮度
@@ -597,17 +597,6 @@ std::string PercipioDevice::parseStreamFormat(const std::string& format)
 float PercipioDevice::getDepthValueScale()
 {
     return f_scale_unit;
-}
-
-//更新color roi aec信息
-bool PercipioDevice::update_color_aec_roi(int x, int y , int w, int h)
-{
-    ROI.x = x;
-    ROI.y = y;
-    ROI.w = w;
-    ROI.h = h;
-    enable_rgb_aec_roi = true;
-    return true;
 }
 
 //开启指定数据流
@@ -765,10 +754,10 @@ void PercipioDevice::colorStreamReceive(const TYImage& color, uint64_t& timestam
                 dst.buffer = (void*)targetRGB.data();
                 TY_STATUS err = TYUndistortImage(&cam_color_calib_data, &src, NULL, &dst);
                 if(err) {
-                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Color TYUndistortImage ret = :" << err);
+                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Faild to do color undistortImage, error: " << err);
                 }
             } else {
-                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid color stream fmt :" << color.format());
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid color stream fmt: " << color.format());
                 return;
             }
         } else {
@@ -815,7 +804,7 @@ void PercipioDevice::depthStreamReceive(TYImage& depth, uint64_t& timestamp)
             dst.buffer = targetDepth.data();
             
             TY_STATUS err = TYUndistortImage(&cam_depth_calib_data, &src, NULL, &dst);
-            if(err) RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth TYUndistortImage err:" << err);
+            if(err) RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Faild to do depth undistortImage, error: " << err);
         } else {
             targetDepth = depth;
         }
@@ -863,7 +852,7 @@ void PercipioDevice::depthStreamReceive(TYImage& depth, uint64_t& timestamp)
             VideoStreamPtr->DepthInit(targetDepth, cam_depth_intrinsic, timestamp);
         }
     } else {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid depth stream fmt :" << depth.format());
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid depth stream fmt: " << depth.format());
         return;
     }
 
@@ -897,7 +886,7 @@ void PercipioDevice::p3dStreamReceive(const TYImage& depth, uint64_t& timestamp)
             dst.buffer = targetDepth.data();
             TY_STATUS err = TYUndistortImage(&cam_depth_calib_data, &src, NULL, &dst);
             if(err) {
-                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth TYUndistortImage ret = :" << err);
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Faild to do depth undistortImage, error: " << err);
             }
         } else {
             targetDepth = depth;
@@ -935,7 +924,7 @@ void PercipioDevice::p3dStreamReceive(const TYImage& depth, uint64_t& timestamp)
             VideoStreamPtr->PointCloudInit(p3d, cam_color_intrinsic, timestamp);
         }
     } else {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid depth stream fmt :" << depth.format());
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid depth stream fmt: " << depth.format());
     }
 }
 
@@ -975,7 +964,7 @@ void PercipioDevice::frameDataReceive() {
             RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device now work at hard trigger mode.");
             break;
         default:
-            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device now work at invalid workmode.");
+            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device now work at invalid workmode.");
             break;
     }
 
@@ -987,7 +976,7 @@ void PercipioDevice::frameDataReceive() {
         } else if(workmode == SOFTTRIGGER) {
             status = TYFetchFrame(handle, &frame, 200);
         } else {
-            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid workmode error :" << workmode);
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid workmode error: " << workmode);
             status = TYFetchFrame(handle, &frame, 2000);
         }
 
@@ -1096,84 +1085,12 @@ void PercipioDevice::frameDataReceive() {
 //开启数据流
 bool PercipioDevice::stream_start()
 {
-    TY_STATUS status;
-    TY_ACCESS_MODE access;
-    switch(gige_version) {
-        case GigeE_2_1:
-        {
-            if(workmode == CONTINUS) {
-                //CONTINUS
-                status = TYEnumSetString(handle, "AcquisitionMode", "Continuous");
-                if(status != TY_STATUS_OK) {
-                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set AcquisitionMode error :" << status);
-                    return false;
-                }
-                status = TYParamGetAccess(handle, "AcquisitionFrameRateEnable", &access);
-                if((status == TY_STATUS_OK) && (access & TY_ACCESS_WRITABLE)) {
-                    status = TYBooleanSetValue(handle, "AcquisitionFrameRateEnable", false);
-                    if(status != TY_STATUS_OK) {
-                        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set AcquisitionFrameRateEnable error :" << status);
-                        return false;
-                    }
-                }
-            } else if(workmode == SOFTTRIGGER) {
-                //SOFTTRIGGER
-                status = TYEnumSetString(handle, "AcquisitionMode", "SingleFrame");
-                if(status != TY_STATUS_OK) {
-                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set AcquisitionMode error :" << status);
-                    return false;
-                }
-
-                status = TYEnumSetString(handle, "TriggerSource", "Software");
-                if(status != TY_STATUS_OK) {
-                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set TriggerSource to  Software error :" << status);
-                    return false;
-                }
-            } else {
-                //HARDTRIGGER
-                status = TYEnumSetString(handle, "AcquisitionMode", "SingleFrame");
-                if(status != TY_STATUS_OK) {
-                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set AcquisitionMode error :" << status);
-                    return false;
-                }
-
-                status = TYEnumSetString(handle, "TriggerSource", "Line0");
-                if(status != TY_STATUS_OK) {
-                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set TriggerSource to  Line0 error :" << status);
-                    return false;
-                }
-            }
-            break;
-        }
-        default:
-        {
-            TY_TRIGGER_PARAM_EX trigger;
-            if(workmode != CONTINUS) {
-                TYSetBool(handle, TY_COMPONENT_DEVICE, TY_BOOL_GVSP_RESEND, true);
-
-                trigger.mode = TY_TRIGGER_MODE_SLAVE;
-                status = TYSetStruct(handle, TY_COMPONENT_DEVICE, TY_STRUCT_TRIGGER_PARAM_EX, &trigger, sizeof(trigger));
-                if(status != TY_STATUS_OK) {
-                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set device to trigger mode error :" << status);
-                    return false;
-                } else {
-                    RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Enable device trigger mode.");
-                }
-            } else {
-                TYSetBool(handle, TY_COMPONENT_DEVICE, TY_BOOL_GVSP_RESEND, b_packet_resend_en);
-
-                //Clear trigger mdoe status
-                trigger.mode = TY_TRIGGER_MODE_OFF;
-                TYSetStruct(handle, TY_COMPONENT_DEVICE, TY_STRUCT_TRIGGER_PARAM_EX, &trigger, sizeof(trigger));
-            }
-            break;
-        }
-    }
+    m_gige_dev->work_mode_init(workmode);
 
     uint32_t frameSize;
-    status = TYGetFrameBufferSize(handle, &frameSize);
+    TY_STATUS status = TYGetFrameBufferSize(handle, &frameSize);
     if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Get frame buffer size error :" << status);
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to get frame buffer size, error: " << status);
         return false;
     }
     frameBuffer[0].resize(frameSize);
@@ -1184,11 +1101,9 @@ bool PercipioDevice::stream_start()
 
     status = TYStartCapture(handle);
     if(status != TY_STATUS_OK) {
-      RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Start capture error :" << status);
+      RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed  to Start capture, error: " << status);
       return false;
     }
-
-    m_gige_dev->color_stream_aec_roi_init(ROI);
 
     is_running_.store(true);
     frame_recive_thread_ = std::make_unique<std::thread>([this]() { frameDataReceive(); });

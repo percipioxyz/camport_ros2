@@ -13,6 +13,8 @@ public:
     virtual TY_STATUS dump_image_mode_list(const TY_COMPONENT_ID comp, std::vector<percipio_video_mode>& modes);
     virtual TY_STATUS image_mode_cfg(const TY_COMPONENT_ID comp, const percipio_video_mode& mode);
 
+    virtual TY_STATUS work_mode_init(percipio_dev_workmode mode);
+
     virtual void device_load_parameters();
 
     virtual TY_STATUS stream_calib_data_init(const TY_COMPONENT_ID comp, TY_CAMERA_CALIB_INFO& calib_data);
@@ -22,13 +24,6 @@ public:
     virtual TY_STATUS depth_scale_unit_init(float& dept_scale_unit);
 
     virtual TY_STATUS color_stream_aec_roi_init(const TY_AEC_ROI_PARAM& ROI);
-
-    virtual TY_STATUS set_tof_depth_quality(const std::string& qua);
-    virtual TY_STATUS set_tof_modulation_threshold(int threshold);
-    virtual TY_STATUS set_tof_jitter_threshold(int threshold);
-    virtual TY_STATUS set_tof_filter_threshold(int threshold);
-    virtual TY_STATUS set_tof_channel(int chan);
-    virtual TY_STATUS set_tof_HDR_ratio(int ratio);
 
 private:
     TY_AEC_ROI_PARAM aec_roi;
