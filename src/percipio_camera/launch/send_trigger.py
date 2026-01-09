@@ -13,7 +13,7 @@ class PublisherNode(Node):
             reliability=QoSReliabilityPolicy.RELIABLE,
             history=QoSHistoryPolicy.KEEP_LAST,
             depth=10)
-        self.publisher_ = self.create_publisher(String, '/camera/trigger_event', qos_profile)
+        self.publisher_ = self.create_publisher(String, '/camera/soft_trigger', qos_profile)
         self.timer = self.create_timer(1.0, self.timer_callback)
         self.counter = 0
  

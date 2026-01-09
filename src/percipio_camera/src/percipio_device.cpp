@@ -1180,11 +1180,7 @@ void PercipioDevice::send_softtrigger()
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "The camera is not working in soft trigger mode, ignore trigger signal");
         return;
     }
-
-    //std::unique_lock<std::mutex> lck( softtrigger_mutex);
-    //m_softtrigger_ready = true;
-    //softtrigger_detect_cond.notify_one();
-    while(TY_STATUS_BUSY == TYSendSoftTrigger(handle));
+    m_gige_dev->send_soft_trigger_signal();
 }
 
 void PercipioDevice::setFrameCallback(FrameCallbackFunction callback)

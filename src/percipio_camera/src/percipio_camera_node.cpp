@@ -248,7 +248,7 @@ void PercipioCameraNode::topic_dynamic_config_callback(const std_msgs::msg::Stri
 
 void PercipioCameraNode::setupSubscribers() {
     trigger_event_subscriber_ = node_->create_subscription<std_msgs::msg::String>(
-            "trigger_event", rclcpp::SensorDataQoS(),
+            "soft_trigger", rclcpp::SensorDataQoS(),
             std::bind(&PercipioCameraNode::topic_softtrigger_callback, this, std::placeholders::_1));
 
     
