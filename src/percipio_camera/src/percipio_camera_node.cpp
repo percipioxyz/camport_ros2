@@ -353,7 +353,7 @@ void PercipioCameraNode::publishColorFrame(percipio_camera::VideoStream& stream)
     camera_info_publishers_[COLOR_STREAM]->publish(image_info);
 
     cv::Mat cv_color = cv::Mat(cv::Size(color.width(), color.height()), CV_8UC3, (void*)color.data());
-    auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), sensor_msgs::image_encodings::RGB8, cv_color).toImageMsg();
+    auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), sensor_msgs::image_encodings::BGR8, cv_color).toImageMsg();
     image_msg->header.stamp = HWTimeUsToROSTime(stream.getColorStramTimestamp());
     image_msg->is_bigendian = false;
     image_msg->step = 3 * color.width();
@@ -529,9 +529,9 @@ void PercipioCameraNode::publishColorPointCloud(percipio_camera::VideoStream& st
                 *iter_x = p3d_data[3 * y * p3d.width() + 3 * x + 0] / 1000.0;
                 *iter_y = p3d_data[3 * y * p3d.width() + 3 * x + 1] / 1000.0;
                 *iter_z = depth / 1000.0;
-                *iter_r = color_data[(3 * y * p3d.width() + 3 * x)  + 0];
+                *iter_b = color_data[(3 * y * p3d.width() + 3 * x)  + 0];
                 *iter_g = color_data[(3 * y * p3d.width() + 3 * x)  + 1];
-                *iter_b = color_data[(3 * y * p3d.width() + 3 * x)  + 2];
+                *iter_r = color_data[(3 * y * p3d.width() + 3 * x)  + 2];
                 ++iter_x;
                 ++iter_y;
                 ++iter_z;

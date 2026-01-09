@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <rclcpp/rclcpp.hpp>
 #include <string>
 #include <map>
@@ -100,7 +99,6 @@ class PercipioCameraNode {
 
         bool device_frame_rate_control = false;
         float device_frame_rate = 5.0;
-
 
         bool point_cloud_enable = true;
         bool color_point_cloud_enable = false;
