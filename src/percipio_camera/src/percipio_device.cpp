@@ -471,6 +471,13 @@ void PercipioDevice::setDeviceConfig(const std::string& config_xml)
     m_gige_dev->parse_xml_parameters(config_xml);
 }
 
+void PercipioDevice::reset()
+{
+    m_gige_dev->reset();
+    MSLEEP(2000);
+    offline_detect_cond.notify_one();
+}
+
 //相机 serial number
 std::string PercipioDevice::serialNumber()
 {

@@ -250,6 +250,11 @@ TY_STATUS GigE_2_0::send_soft_trigger_signal()
     return err;
 }
 
+void GigE_2_0::reset()
+{
+    TYCloseDevice(hDevice, true);
+}
+
 bool GigE_2_0::load_default_parameter()
 {
     TY_STATUS status = TY_STATUS_OK;

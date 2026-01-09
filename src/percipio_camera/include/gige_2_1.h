@@ -27,6 +27,8 @@ public:
 
     virtual TY_STATUS send_soft_trigger_signal();
 
+    virtual void reset();
+
 private:
     TY_STATUS fix_device_frame_rate(float& rate);
     TY_STATUS fix_device_frame_rate_in_soft_trigger_mode(const float rate);

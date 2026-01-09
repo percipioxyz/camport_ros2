@@ -234,16 +234,20 @@ void PercipioCameraNode::startStreams() {
 
 void PercipioCameraNode::topic_softtrigger_callback(const std_msgs::msg::String::SharedPtr msg) const
 {
-    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "    got Event: '%s'", msg->data.c_str());
-    if(msg->data.find("SoftTrigger") == 0) {
-        device_ptr->send_softtrigger();
-    }
+    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "    got soft trigger event: '%s'", msg->data.c_str());
+    device_ptr->send_softtrigger();
 }
 
 void PercipioCameraNode::topic_dynamic_config_callback(const std_msgs::msg::String::SharedPtr msg) const
 {
-    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "    got Event: '%s'", msg->data.c_str());
+    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "    got dynamic config event: '%s'", msg->data.c_str());
     device_ptr->setDeviceConfig(msg->data);
+}
+
+void PercipioCameraNode::topic_device_reset_callback(const std_msgs::msg::Empty::SharedPtr) const
+{
+    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "    got device reset event.");
+    device_ptr->reset();
 }
 
 void PercipioCameraNode::setupSubscribers() {
@@ -255,6 +259,10 @@ void PercipioCameraNode::setupSubscribers() {
     config_event_subscriber_ = node_->create_subscription<std_msgs::msg::String>(
             "dynamic_config", rclcpp::SensorDataQoS(),
             std::bind(&PercipioCameraNode::topic_dynamic_config_callback, this, std::placeholders::_1));
+
+    device_reset_event_subscriber_ = node_->create_subscription<std_msgs::msg::Empty>(
+            "reset", rclcpp::SensorDataQoS(),
+            std::bind(&PercipioCameraNode::topic_device_reset_callback, this, std::placeholders::_1));
 }
 
 void PercipioCameraNode::setupPublishers() {  

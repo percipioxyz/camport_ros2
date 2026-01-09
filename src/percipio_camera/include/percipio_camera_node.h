@@ -17,6 +17,7 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <std_msgs/msg/empty.hpp>
 
 #include <image_publisher/image_publisher.hpp>
 #include <image_transport/publisher.hpp>
@@ -84,6 +85,9 @@ class PercipioCameraNode {
 
         void topic_dynamic_config_callback(const std_msgs::msg::String::SharedPtr msg) const;
         rclcpp::Subscription<std_msgs::msg::String>::SharedPtr config_event_subscriber_;
+
+        void topic_device_reset_callback(const std_msgs::msg::Empty::SharedPtr msg) const;
+        rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr device_reset_event_subscriber_;
         
         rclcpp::TimerBase::SharedPtr timer_ = nullptr;
         void broadcast_timer_callback();

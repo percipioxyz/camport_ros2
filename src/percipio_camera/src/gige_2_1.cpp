@@ -428,6 +428,11 @@ TY_STATUS GigE_2_1::send_soft_trigger_signal()
     return TYCommandExec(hDevice, "TriggerSoftware");
 }
 
+void GigE_2_1::reset()
+{
+    TYCommandExec(hDevice, "DeviceReset");
+}
+
 TY_STATUS GigE_2_1::fix_device_frame_rate(float& rate)
 {
     double min = 0, max = 0;

@@ -143,6 +143,8 @@ public:
 
     virtual TY_STATUS send_soft_trigger_signal() = 0;
 
+    virtual void reset() = 0;
+
     uint32_t streams() { return allComps;}
 public:
     PercipioVideoMode mVideoMode;
@@ -174,6 +176,7 @@ class PercipioDevice
         PercipioDeviceEventCallbackFunction _event_callback;
         void registerCameraEventCallback(PercipioDeviceEventCallbackFunction callback);
         void setDeviceConfig(const std::string& config_xml);
+        void reset();
 
         std::string serialNumber();
         std::string modelName();

@@ -26,6 +26,8 @@ public:
     virtual TY_STATUS color_stream_aec_roi_init(const TY_AEC_ROI_PARAM& ROI);
 
     virtual TY_STATUS send_soft_trigger_signal();
+
+    virtual void reset();
 private:
     TY_AEC_ROI_PARAM aec_roi;
     bool load_default_parameter();

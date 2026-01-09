@@ -159,7 +159,7 @@ def generate_launch_description():
 
         # Enable device auto try reconnect while offline
         # You can refer to the example file "offline_detect.py" to detect camera offline events, regardless of whether this switch is turned on or off.
-        DeclareLaunchArgument('device_auto_reconnect', default_value='false'),
+        DeclareLaunchArgument('device_auto_reconnect', default_value='true'),
 
         # Enable rgb stream output
         DeclareLaunchArgument('color_enable', default_value='true'),

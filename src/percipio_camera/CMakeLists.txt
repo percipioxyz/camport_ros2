@@ -74,7 +74,6 @@ file(GLOB_RECURSE IGNORE_WARNING_SOURCES
 )
 
 foreach(source ${IGNORE_WARNING_SOURCES})
-    message("=============${source}")
     set_source_files_properties(${source}
         PROPERTIES
         COMPILE_FLAGS "${CMAKE_CXX_FLAGS} -w"
