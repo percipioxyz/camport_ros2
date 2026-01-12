@@ -199,7 +199,7 @@ void PercipioTcpLogServer::handleClient(int client_fd, const std::string& client
                     message_buffer.erase(0, pos + 1);
 
                     if (!message.empty()) {
-                        consoleOutput(message, client_ip, client_port);
+                        consoleOutput(message);//, client_ip, client_port);
 
                         // Call callback
                         std::lock_guard<std::mutex> lock(callback_mutex_);
@@ -230,7 +230,8 @@ void PercipioTcpLogServer::setNonBlocking(int fd) {
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
-void PercipioTcpLogServer::consoleOutput(const std::string& message, const std::string& client_ip, int client_port) {
+//void PercipioTcpLogServer::consoleOutput(const std::string& message, const std::string& client_ip, int client_port) {
+void PercipioTcpLogServer::consoleOutput(const std::string& message) {
     RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_LOG_SERVER), "" << message);
 }
 

@@ -8,6 +8,8 @@
 #include "gige_2_0.h"
 #include "gige_2_1.h"
 
+#include "percipio_image_process.hpp"
+
 namespace percipio_camera {
 
 #define INVALID_COMPONENT_ID        (0xFFFFFFFF)
@@ -386,9 +388,40 @@ TY_STATUS PercipioDevice::device_open(const char* faceId, const char* deviceId)
 
     m_gige_dev->init();
 
-    
+    auto comps = m_gige_dev->streams();
+    if(comps & TY_COMPONENT_DEPTH_CAM) {
+        status = m_gige_dev->stream_calib_data_init(TY_COMPONENT_DEPTH_CAM, cam_depth_calib_data);
+        if(status != TY_STATUS_OK) {
+            has_depth_calib_data = false;
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Got depth stream calib data error: " << status);
+        } else {
+            has_depth_calib_data = true;
+            cam_depth_intrinsic = image_intrinsic(cam_depth_calib_data.intrinsicWidth, cam_depth_calib_data.intrinsicHeight, cam_depth_calib_data.intrinsic);
+        }
 
+        m_gige_dev->depth_stream_distortion_check(b_need_do_depth_undistortion);
+    }
 
+    if(comps & TY_COMPONENT_RGB_CAM) {
+        status = m_gige_dev->stream_calib_data_init(TY_COMPONENT_RGB_CAM, cam_color_calib_data);
+        if(status != TY_STATUS_OK) {
+            has_color_calib_data = false;
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Got color stream calib data error:" << status);
+        } else {
+            has_color_calib_data = true;
+            cam_color_intrinsic = image_intrinsic(cam_color_calib_data.intrinsicWidth, cam_color_calib_data.intrinsicHeight, cam_color_calib_data.intrinsic);
+        }
+    }
+
+    if(comps & TY_COMPONENT_IR_CAM_LEFT) {
+        m_gige_dev->stream_calib_data_init(TY_COMPONENT_IR_CAM_LEFT, cam_left_ir_calib_data);
+        cam_leftir_intrinsic = image_intrinsic(cam_left_ir_calib_data.intrinsicWidth, cam_left_ir_calib_data.intrinsicHeight, cam_left_ir_calib_data.intrinsic);
+    }
+
+    if(comps & TY_COMPONENT_IR_CAM_RIGHT) {
+        m_gige_dev->stream_calib_data_init(TY_COMPONENT_IR_CAM_RIGHT, cam_right_ir_calib_data);
+        cam_rightir_intrinsic = image_intrinsic(cam_right_ir_calib_data.intrinsicWidth, cam_right_ir_calib_data.intrinsicHeight, cam_right_ir_calib_data.intrinsic);
+    }
 
     device_ros_event.eventId = (TY_EVENT)TY_EVENT_DEVICE_CONNECT;
 
@@ -663,47 +696,36 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
         return false;
     }
 
-    switch (m_comp) {
-        case TY_COMPONENT_DEPTH_CAM: {
-            m_gige_dev->depth_scale_unit_init(f_scale_unit);
-            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth stream scale unit: " << f_scale_unit);
-            status = m_gige_dev->stream_calib_data_init(TY_COMPONENT_DEPTH_CAM, cam_depth_calib_data);
-            if(status != TY_STATUS_OK) {
-                has_depth_calib_data = false;
-                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Got depth stream calib data error: " << status);
-            } else {
-                has_depth_calib_data = true;
-                cam_depth_intrinsic = image_intrinsic(cam_depth_calib_data.intrinsicWidth, cam_depth_calib_data.intrinsicHeight, cam_depth_calib_data.intrinsic);
-            }
+    if(m_comp == TY_COMPONENT_DEPTH_CAM) {
+        m_gige_dev->depth_scale_unit_init(f_scale_unit);
+        RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth stream scale unit: " << f_scale_unit);
+    }
 
-            m_gige_dev->depth_stream_distortion_check(b_need_do_depth_undistortion);
-            break;
-        }
-        case TY_COMPONENT_RGB_CAM: {
-            status = m_gige_dev->stream_calib_data_init(TY_COMPONENT_RGB_CAM, cam_color_calib_data);
+    if((m_comp == TY_COMPONENT_IR_CAM_LEFT) || (m_comp == TY_COMPONENT_IR_CAM_RIGHT)) {
+        if(b_do_ir_undist) {
+            if(m_comp == TY_COMPONENT_IR_CAM_LEFT) cam_leftir_intrinsic = cam_depth_intrinsic;
+            if(m_comp == TY_COMPONENT_IR_CAM_RIGHT) cam_rightir_intrinsic = cam_depth_intrinsic;
+            
+            status = m_gige_dev->EnableHwIRUndistortion();
             if(status != TY_STATUS_OK) {
-                has_color_calib_data = false;
-                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Got color stream calib data error:" << status);
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "The device does not support self-rectification of IR images.");
+
+                m_gige_dev->getIRLensType(ir_len_type);
+                m_gige_dev->getIRRectificationMode(ir_rectificatio_mode);
+
+                if(ir_rectificatio_mode == EPIPOLAR_RECTIFICATION) {
+                    m_gige_dev->getLeftIRRotation(left_ir_rotation);
+                    m_gige_dev->getRightIRRotation(right_ir_rotation);
+                    m_gige_dev->getLeftIRRectifiedIntr(left_ir_rectified_intr);
+                    m_gige_dev->getRightIRRectifiedIntr(right_ir_rectified_intr);
+                }
+                b_enable_sw_ir_undistortion = true;
             } else {
-                has_color_calib_data = true;
-                cam_color_intrinsic = image_intrinsic(cam_color_calib_data.intrinsicWidth, cam_color_calib_data.intrinsicHeight, cam_color_calib_data.intrinsic);
+                b_enable_sw_ir_undistortion = false;
             }
-            break;
+        } else {
+            b_enable_sw_ir_undistortion = false;
         }
-        case TY_COMPONENT_IR_CAM_LEFT: {
-            TY_CAMERA_CALIB_INFO calib_data;
-            m_gige_dev->stream_calib_data_init(TY_COMPONENT_IR_CAM_LEFT, calib_data);
-            cam_leftir_intrinsic = image_intrinsic(calib_data.intrinsicWidth, calib_data.intrinsicHeight, calib_data.intrinsic);
-            break;
-        }
-        case TY_COMPONENT_IR_CAM_RIGHT: {
-            TY_CAMERA_CALIB_INFO calib_data;
-            m_gige_dev->stream_calib_data_init(TY_COMPONENT_IR_CAM_RIGHT, calib_data);
-            cam_rightir_intrinsic = image_intrinsic(calib_data.intrinsicWidth, calib_data.intrinsicHeight, calib_data.intrinsic);
-            break;
-        }
-        default:
-            break;
     }
 
     if(!reconnect) m_streams.push_back({idx, resolution, format});
@@ -722,7 +744,7 @@ bool PercipioDevice::stream_close(const percipio_stream_index_pair& idx)
     }
 
     if((m_comp & m_gige_dev->streams()) != m_comp) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Unsupported component: " << m_comp);
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Unsupported component: 0x" << std::hex << m_comp << std::dec);
         return false;
     }
 
@@ -774,16 +796,100 @@ void PercipioDevice::colorStreamReceive(const TYImage& color, uint64_t& timestam
     }
 }
 
-void PercipioDevice::leftIRStreamReceive(const TYImage& ir, uint64_t& timestamp)
+TY_STATUS PercipioDevice::IREnhancement(TYImage& IR)
 {
-    if(ir.empty()) return;
-    if(VideoStreamPtr) VideoStreamPtr->IRLeftInit(ir, cam_leftir_intrinsic, timestamp);
+    switch(enhance_mode) {
+        case IREnhanceOFF:                  return TY_STATUS_OK;
+        case IREnhanceLinearStretch:        return GrayIR_linearStretch(IR);
+        case IREnhanceLinearStretch_Multi:  return GrayIR_linearStretch_multi(IR, m_enhance_coeff);
+        case IREnhanceLinearStretch_STD:    return GrayIR_linearStretch_std(IR, m_enhance_coeff);
+        case IREnhanceLinearStretch_LOG2:   return GrayIR_nonlinearStretch_log2(IR, m_enhance_coeff);
+        case IREnhanceLinearStretch_Hist:   return GrayIR_nonlinearStretch_hist(IR);
+        default: return TY_STATUS_INVALID_PARAMETER;
+    }
 }
 
-void PercipioDevice::rightIRStreamReceive(const TYImage& ir, uint64_t& timestamp)
+TY_STATUS PercipioDevice::IRUndistortion(TYImage& IR, const TY_CAMERA_CALIB_INFO *calib_info, const TY_CAMERA_ROTATION *cameraRotation, const TY_CAMERA_INTRINSIC *cameraNewIntrinsic, const TYLensOpticalType type)
+{
+    if (!calib_info ) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "IRUndistortion Invalid parameters: calib_info is empty!");
+        return TY_STATUS_INVALID_PARAMETER;
+    }
+        
+    //Check if IR data is valid
+    if (!IR.size() || IR.width() <= 0 || IR.height() <= 0) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "IRUndistortion Invalid IR image data");
+        return TY_STATUS_INVALID_PARAMETER;
+    }
+        
+    //Get current image properties
+    int32_t width = IR.width();
+    int32_t height = IR.height();
+    int32_t dataSize = (int32_t)IR.size();
+    uint32_t pixelFormat = IR.format();
+        
+    //Allocate buffer for rectified image (same size as original)
+    std::vector<uint8_t> rectifiedBuffer(dataSize);
+        
+    //Prepare source image data structure
+    TY_IMAGE_DATA srcImage;
+    srcImage.width = width;
+    srcImage.height = height;
+    srcImage.size = dataSize;
+    srcImage.pixelFormat = pixelFormat;
+    srcImage.buffer = IR.data();
+    
+    //Prepare destination image data structure
+    TY_IMAGE_DATA dstImage;
+    dstImage.width = width;
+    dstImage.height = height;
+    dstImage.size = dataSize;
+    dstImage.pixelFormat = pixelFormat;
+    dstImage.buffer = rectifiedBuffer.data();
+    
+    //Apply distortion correction
+    TY_STATUS status = TYUndistortImage2(calib_info, &srcImage, cameraRotation, 
+                                        cameraNewIntrinsic, &dstImage, type);
+    if (status != TY_STATUS_OK) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "TYUndistortImage2 failed with status: " << status);
+        return status;
+    }
+    
+    //Copy rectified data to VideoFrameData buffer
+    memcpy(IR.data(), rectifiedBuffer.data(), dataSize);
+    return TY_STATUS_OK;
+}
+
+void PercipioDevice::leftIRStreamReceive(TYImage& ir, uint64_t& timestamp)
 {
     if(ir.empty()) return;
-    if(VideoStreamPtr) VideoStreamPtr->IRRightInit(ir, cam_rightir_intrinsic, timestamp);
+    if(VideoStreamPtr) {
+        IREnhancement(ir);
+        if(b_enable_sw_ir_undistortion) {
+            if(DISTORTION_CORRECTION == ir_rectificatio_mode) {
+                IRUndistortion(ir, &cam_left_ir_calib_data, nullptr, nullptr, ir_len_type);
+            } else {
+                IRUndistortion(ir, &cam_left_ir_calib_data, &left_ir_rotation, &left_ir_rectified_intr, ir_len_type);
+            }
+        }
+        VideoStreamPtr->IRLeftInit(ir, cam_leftir_intrinsic, timestamp);
+    }
+}
+
+void PercipioDevice::rightIRStreamReceive(TYImage& ir, uint64_t& timestamp)
+{
+    if(ir.empty()) return;
+    if(VideoStreamPtr) {
+        IREnhancement(ir);
+        if(b_enable_sw_ir_undistortion) {
+            if(DISTORTION_CORRECTION == ir_rectificatio_mode) {
+                IRUndistortion(ir, &cam_right_ir_calib_data, nullptr, nullptr, ir_len_type);
+            } else {
+                IRUndistortion(ir, &cam_right_ir_calib_data, &right_ir_rotation, &right_ir_rectified_intr, ir_len_type);
+            }
+        }
+        VideoStreamPtr->IRRightInit(ir, cam_rightir_intrinsic, timestamp);
+    }
 }
 
 void PercipioDevice::depthStreamReceive(TYImage& depth, uint64_t& timestamp)
@@ -1228,6 +1334,17 @@ void PercipioDevice::dpeth_time_domain_filter_init(bool enable, int number)
     b_depth_time_domain_en = enable;
     m_depth_time_domain_frame_num = number;
     DepthDomainTimeFilterMgrPtr->reset(m_depth_time_domain_frame_num);
+}
+
+void PercipioDevice::ir_enhance_mode_init(ir_enhance_model mode, int coeff)
+{
+    enhance_mode = mode;
+    m_enhance_coeff = coeff;
+}
+
+void PercipioDevice::ir_undistortion_enable(bool en)
+{
+    b_do_ir_undist = en;
 }
 
 }

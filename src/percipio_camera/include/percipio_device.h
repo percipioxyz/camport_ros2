@@ -26,10 +26,25 @@ enum percipio_stream_type {
     IR_RIGHT
 };
 
+enum percipio_rectification_mode{
+    DISTORTION_CORRECTION,
+    EPIPOLAR_RECTIFICATION
+};
+
 enum percipio_dev_workmode {
     CONTINUS = 0,
     SOFTTRIGGER,
     HARDTRIGGER,
+};
+
+enum ir_enhance_model
+{
+    IREnhanceOFF    = 0,
+    IREnhanceLinearStretch       = 1,
+    IREnhanceLinearStretch_Multi = 2, //2-20;  Def:8
+    IREnhanceLinearStretch_STD   = 3, //2-20;  Def:6
+    IREnhanceLinearStretch_LOG2  = 4, //5-50;  Def:20
+    IREnhanceLinearStretch_Hist  = 5
 };
 
 enum percipio_dev_ros_event {
@@ -135,6 +150,17 @@ public:
 
     virtual TY_STATUS stream_calib_data_init(const TY_COMPONENT_ID comp, TY_CAMERA_CALIB_INFO& calib_data) = 0;
 
+    virtual TY_STATUS EnableHwIRUndistortion() = 0;
+
+    virtual TY_STATUS getIRLensType(TYLensOpticalType& type) = 0;
+    virtual TY_STATUS getIRRectificationMode(percipio_rectification_mode& mode) = 0;
+
+    virtual TY_STATUS getLeftIRRotation(TY_CAMERA_ROTATION& rotation) = 0;
+    virtual TY_STATUS getLeftIRRectifiedIntr(TY_CAMERA_INTRINSIC& rectified_intr) = 0;
+
+    virtual TY_STATUS getRightIRRotation(TY_CAMERA_ROTATION& rotation) = 0;
+    virtual TY_STATUS getRightIRRectifiedIntr(TY_CAMERA_INTRINSIC& rectified_intr) = 0;
+
     virtual void depth_stream_distortion_check(bool& has_undist_data) = 0;
 
     virtual TY_STATUS depth_scale_unit_init(float& dept_scale_unit) = 0;
@@ -214,6 +240,9 @@ class PercipioDevice
         void depth_speckle_filter_init(bool enable, int spec_size, int spec_diff, float phy_size);
         void dpeth_time_domain_filter_init(bool enable, int number);
 
+        void ir_enhance_mode_init(ir_enhance_model mode, int coeff);
+        void ir_undistortion_enable(bool en);
+
         std::mutex softtrigger_mutex;
 
         std::mutex offline_detect_mutex;
@@ -266,12 +295,29 @@ class PercipioDevice
         int  m_depth_time_domain_frame_num = 3;
         std::unique_ptr<DepthTimeDomainMgr> DepthDomainTimeFilterMgrPtr;
 
+        ir_enhance_model enhance_mode;
+        int m_enhance_coeff;
+
+        bool b_do_ir_undist = true;
+        bool b_enable_sw_ir_undistortion = false;
+
+        percipio_rectification_mode ir_rectificatio_mode = DISTORTION_CORRECTION;
+        TYLensOpticalType    ir_len_type = TY_LENS_PINHOLE;
+
         std::unique_ptr<std::thread> device_reconnect_thread = nullptr;
         void device_offline_reconnect();
 
         float f_scale_unit = 1.f;
         TY_CAMERA_CALIB_INFO cam_depth_calib_data;
         TY_CAMERA_CALIB_INFO cam_color_calib_data;
+
+        TY_CAMERA_CALIB_INFO cam_left_ir_calib_data;
+        TY_CAMERA_ROTATION   left_ir_rotation;
+        TY_CAMERA_INTRINSIC  left_ir_rectified_intr;
+
+        TY_CAMERA_CALIB_INFO cam_right_ir_calib_data;
+        TY_CAMERA_ROTATION   right_ir_rotation;
+        TY_CAMERA_INTRINSIC  right_ir_rectified_intr;
 
         image_intrinsic cam_depth_intrinsic;
         image_intrinsic cam_color_intrinsic;
@@ -291,9 +337,12 @@ class PercipioDevice
         bool resolveStreamResolution(const std::string& resolution_, uint32_t& width, uint32_t& height);
         std::string parseStreamFormat(const std::string& format);
 
+        TY_STATUS IREnhancement(TYImage& IR);
+        TY_STATUS IRUndistortion(TYImage& IR, const TY_CAMERA_CALIB_INFO *calib_info, const TY_CAMERA_ROTATION *cameraRotation, const TY_CAMERA_INTRINSIC *cameraNewIntrinsic, const TYLensOpticalType type = TY_LENS_PINHOLE);
+
         void colorStreamReceive(const TYImage& color, uint64_t& timestamp);
-        void leftIRStreamReceive(const TYImage& ir,   uint64_t& timestamp);
-        void rightIRStreamReceive(const TYImage& ir,  uint64_t& timestamp);
+        void leftIRStreamReceive(TYImage& ir,   uint64_t& timestamp);
+        void rightIRStreamReceive(TYImage& ir,  uint64_t& timestamp);
         void depthStreamReceive(TYImage& depth, uint64_t& timestamp);
         void p3dStreamReceive(const TYImage& depth,   uint64_t& timestamp);
 };

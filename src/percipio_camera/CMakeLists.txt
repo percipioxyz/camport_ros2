@@ -69,17 +69,6 @@ endif()
 find_package(TYCam REQUIRED PATHS ${CMAKE_CURRENT_SOURCE_DIR}/camport4 NO_DEFAULT_PATH)
 include_directories(${TYCam_INCLUDE_DIRS})
 
-file(GLOB_RECURSE IGNORE_WARNING_SOURCES 
-    "${TYCam_INCLUDE_DIRS}/*.h"
-)
-
-foreach(source ${IGNORE_WARNING_SOURCES})
-    set_source_files_properties(${source}
-        PROPERTIES
-        COMPILE_FLAGS "${CMAKE_CXX_FLAGS} -w"
-    )
-endforeach()
-
 set(SOURCE_FILES
   src/percipio_camera_node_driver.cpp
   src/percipio_camera_node.cpp
@@ -94,6 +83,16 @@ set(SOURCE_FILES
   src/huffman.cpp
 )
 
+file(GLOB_RECURSE LEGACY_SOURCES
+    "src/huffman.cpp"
+    "src/percipio_xml.cpp"
+)
+
+set_source_files_properties(${LEGACY_SOURCES}
+    PROPERTIES
+        COMPILE_FLAGS "-Wno-implicit-fallthrough -Wno-format -Wno-parentheses"
+)
+
 set(SOURCE_INCLUDES_DIR
   include
 )
@@ -104,7 +103,9 @@ set(SDK_INCLUDE_DIRS
 
 macro(add_percipio_ros_executable TARGET SOURCE)
   add_executable(${TARGET} ${SOURCE} src/TYThread.cpp)
-  target_include_directories(${TARGET} PUBLIC ${SDK_INCLUDE_DIRS} ${SOURCE_INCLUDES_DIR})
+  #target_include_directories(${TARGET} PUBLIC ${SDK_INCLUDE_DIRS} ${SOURCE_INCLUDES_DIR})
+  target_include_directories(${TARGET} SYSTEM PUBLIC ${SDK_INCLUDE_DIRS})
+  target_include_directories(${TARGET} PUBLIC ${SOURCE_INCLUDES_DIR})
   target_link_libraries(${TARGET} ${TYCam_LIBS} ${PROJECT_NAME})
   ament_target_dependencies(${TARGET} ${dependencies})
 endmacro()
@@ -121,7 +122,9 @@ add_library(${PROJECT_NAME} SHARED
     ${SOURCE_FILES}
 )
 ament_target_dependencies(${PROJECT_NAME} ${dependencies})
-target_include_directories(${PROJECT_NAME} PUBLIC ${SDK_INCLUDE_DIRS} ${SOURCE_INCLUDES_DIR})
+#target_include_directories(${PROJECT_NAME} PUBLIC ${SDK_INCLUDE_DIRS} ${SOURCE_INCLUDES_DIR})
+target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC ${SDK_INCLUDE_DIRS})
+target_include_directories(${PROJECT_NAME} PUBLIC ${SOURCE_INCLUDES_DIR})
 target_link_libraries(${PROJECT_NAME} ${TYCam_LIBS} ${rclcpp_LIBRARIES})
 
 rclcpp_components_register_node(${PROJECT_NAME}

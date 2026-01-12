@@ -58,7 +58,8 @@ private:
     //LogLevel parseLogLevel(const std::string& message);
     //std::string getLevelString(LogLevel level);
     //void consoleOutput(LogLevel level, const std::string& message, const std::string& client_ip, int client_port);
-    void consoleOutput(const std::string& message, const std::string& client_ip, int client_port);
+    //void consoleOutput(const std::string& message, const std::string& client_ip, int client_port);
+    void consoleOutput(const std::string& message);
 
 private:
     int server_fd_;

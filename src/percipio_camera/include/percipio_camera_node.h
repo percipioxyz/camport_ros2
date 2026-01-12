@@ -113,6 +113,11 @@ class PercipioCameraNode {
         bool depth_time_domain_filter_enable = false;
         int  depth_time_domain_num = 3;
 
+        ir_enhance_model ir_enhance_mode = IREnhanceOFF;
+        int ir_enhancement_coefficient_ = 6;
+
+        bool ir_undistortion = true;
+
         int m_laser_power = -1;
 
         int roi[4];

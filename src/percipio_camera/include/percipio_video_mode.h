@@ -38,6 +38,10 @@ public:
     size_t size() const;
     bool isExternalData() const;
 
+    void setPixelFormat(const TYPixFmt fmt) { m_fmt = fmt; }
+    void setWidth(const int w) { m_Width = w; }
+    void setHeight(const int h) { m_Height = h; }
+
 private:
     int m_Width;
     int m_Height;

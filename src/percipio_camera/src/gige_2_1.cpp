@@ -4,13 +4,13 @@ namespace percipio_camera {
 
 #define LOG_HEAD_GIGE_2_1  "GIGE2_1"
 
-const static int32_t m_Source_Range = 0;
-const static int32_t m_Source_Color = 1;
-const static int32_t m_Source_LeftIR = 2;
-const static int32_t m_Source_RightIR = 3;
-static int CamComponentIDToSourceIdx(const TY_COMPONENT_ID comp)
+const static int64_t m_Source_Range = 0;
+const static int64_t m_Source_Color = 1;
+const static int64_t m_Source_LeftIR = 2;
+const static int64_t m_Source_RightIR = 3;
+static int64_t CamComponentIDToSourceIdx(const TY_COMPONENT_ID comp)
 {
-    int32_t index = -1;
+    int64_t index = -1;
     switch(comp) {
     case TY_COMPONENT_DEPTH_CAM:
         index = m_Source_Range;
@@ -49,10 +49,10 @@ TY_STATUS GigE_2_1::init()
 
 TY_STATUS GigE_2_1::dump_image_mode_list(const TY_COMPONENT_ID comp, std::vector<percipio_video_mode>& modes)
 {
-    int source = CamComponentIDToSourceIdx(comp);
+    int64_t source = CamComponentIDToSourceIdx(comp);
     if(source < 0) return TY_STATUS_INVALID_COMPONENT;
 
-    TY_STATUS ret = TYEnumSetValue(hDevice, "SourceSelector", source);
+    TY_STATUS ret = source_init(source);
     if(ret) return ret;
 
     int64_t m_sensor_w, m_sensor_h;
@@ -129,10 +129,10 @@ TY_STATUS GigE_2_1::dump_image_mode_list(const TY_COMPONENT_ID comp, std::vector
 
 TY_STATUS GigE_2_1::image_mode_cfg(const TY_COMPONENT_ID comp, const percipio_video_mode& mode)
 {
-    int source = CamComponentIDToSourceIdx(comp);
+    int64_t source = CamComponentIDToSourceIdx(comp);
     if(source < 0) return TY_STATUS_INVALID_COMPONENT;
 
-    TY_STATUS ret = TYEnumSetValue(hDevice, "SourceSelector", source);
+    TY_STATUS ret = source_init(source);
     if(ret) return ret;
 
     ret = TYEnumSetValue(hDevice, "PixelFormat", mode.fmt);
@@ -296,8 +296,8 @@ void GigE_2_1::device_load_parameters()
 
 TY_STATUS GigE_2_1::stream_calib_data_init(const TY_COMPONENT_ID comp, TY_CAMERA_CALIB_INFO& calib_data)
 {
-    int source = CamComponentIDToSourceIdx(comp);
-    TY_STATUS status = TYEnumSetValue(hDevice, "SourceSelector", source);
+    int64_t source = CamComponentIDToSourceIdx(comp);
+    TY_STATUS status = source_init(source);
     if(TY_STATUS_OK == status) {
         int64_t intrinsicWidth = 0;
         int64_t intrinsicHeight = 0;
@@ -332,10 +332,124 @@ TY_STATUS GigE_2_1::stream_calib_data_init(const TY_COMPONENT_ID comp, TY_CAMERA
     return status;
 }
 
+TY_STATUS GigE_2_1::EnableHwIRUndistortion()
+{
+    bool exist = false;
+    TY_STATUS ret = TYParamExist(hDevice, "IRUndistortion", &exist);
+    if(ret) return ret;
+    if(!exist) return TY_STATUS_NOT_PERMITTED;
+    return TYBooleanSetValue(hDevice, "IRUndistortion", true);
+}
+
+TY_STATUS GigE_2_1::getIRLensType(TYLensOpticalType& type)
+{
+    type = TY_LENS_PINHOLE;
+    return TY_STATUS_OK;
+}
+
+TY_STATUS GigE_2_1::getIRRectificationMode(percipio_rectification_mode& mode)
+{
+    mode = DISTORTION_CORRECTION;
+
+    TY_STATUS ret = source_init(m_Source_LeftIR);
+    if(ret) return ret;
+
+    bool rotation = false;
+    bool rectified_intr = false;  
+    TYParamExist(hDevice, "Rotation", &rotation);
+    TYParamExist(hDevice, "Intrinsic2", &rectified_intr);
+    if(rotation && rectified_intr) mode = EPIPOLAR_RECTIFICATION;
+    return TY_STATUS_OK;
+}
+
+TY_STATUS GigE_2_1::getLeftIRRotation(TY_CAMERA_ROTATION& Rotation)
+{
+    TY_STATUS ret = source_init(m_Source_LeftIR);
+    if(ret) return ret;
+
+    double rotation[9];
+    ret = TYByteArrayGetValue(hDevice, "Rotation", reinterpret_cast<uint8_t*>(rotation), sizeof(rotation));
+    if(TY_STATUS_OK == ret) {
+        for(size_t i = 0; i < 9; i++) {
+            Rotation.data[i] = static_cast<float>(rotation[i]);
+        }
+    }
+    return ret;
+}
+
+TY_STATUS GigE_2_1::getLeftIRRectifiedIntr(TY_CAMERA_INTRINSIC& Rectified_intr)
+{
+    TY_STATUS ret = source_init(m_Source_LeftIR);
+    if(ret) return ret;
+
+    int64_t binning = 0;
+    ret = TYEnumGetValue(hDevice, "BinningHorizontal", &binning);
+    if(ret) binning = 1;
+
+    double intrinsic[9];
+    ret = TYByteArrayGetValue(hDevice, "Intrinsic2", reinterpret_cast<uint8_t*>(intrinsic), sizeof(intrinsic));
+    if(TY_STATUS_OK == ret) {
+        Rectified_intr.data[0] = static_cast<float>(intrinsic[0] / binning);
+        Rectified_intr.data[1] = 0;
+        Rectified_intr.data[2] = static_cast<float>(intrinsic[2] / binning);
+
+        Rectified_intr.data[3] = 0;
+        Rectified_intr.data[4] = static_cast<float>(intrinsic[4] / binning);
+        Rectified_intr.data[5] = static_cast<float>(intrinsic[5] / binning);
+
+        Rectified_intr.data[6] = 0;
+        Rectified_intr.data[7] = 0;
+        Rectified_intr.data[8] = 1;
+    }
+    return ret;
+}
+
+TY_STATUS GigE_2_1::getRightIRRotation(TY_CAMERA_ROTATION& Rotation)
+{
+    TY_STATUS ret = source_init(m_Source_RightIR);
+    if(ret) return ret;
+
+    double rotation[9];
+    ret = TYByteArrayGetValue(hDevice, "Rotation", reinterpret_cast<uint8_t*>(rotation), sizeof(rotation));
+    if(TY_STATUS_OK == ret) {
+        for(size_t i = 0; i < 9; i++) {
+            Rotation.data[i] = static_cast<float>(rotation[i]);
+        }
+    }
+    return ret;
+}
+
+TY_STATUS GigE_2_1::getRightIRRectifiedIntr(TY_CAMERA_INTRINSIC& Rectified_intr)
+{
+    TY_STATUS ret = source_init(m_Source_RightIR);
+    if(ret) return ret;
+
+    int64_t binning = 0;
+    ret = TYEnumGetValue(hDevice, "BinningHorizontal", &binning);
+    if(ret) binning = 1;
+
+    double intrinsic[9];
+    ret = TYByteArrayGetValue(hDevice, "Intrinsic2", reinterpret_cast<uint8_t*>(intrinsic), sizeof(intrinsic));
+    if(TY_STATUS_OK == ret) {
+        Rectified_intr.data[0] = static_cast<float>(intrinsic[0] / binning);
+        Rectified_intr.data[1] = 0;
+        Rectified_intr.data[2] = static_cast<float>(intrinsic[2] / binning);
+
+        Rectified_intr.data[3] = 0;
+        Rectified_intr.data[4] = static_cast<float>(intrinsic[4] / binning);
+        Rectified_intr.data[5] = static_cast<float>(intrinsic[5] / binning);
+
+        Rectified_intr.data[6] = 0;
+        Rectified_intr.data[7] = 0;
+        Rectified_intr.data[8] = 1;
+    }
+    return ret;
+}
+
 void GigE_2_1::depth_stream_distortion_check(bool& has_undist_data)
 {
     has_undist_data = false;
-    TY_STATUS ret = TYEnumSetValue(hDevice, "SourceSelector", CamComponentIDToSourceIdx(TY_COMPONENT_DEPTH_CAM));
+    TY_STATUS ret = source_init(CamComponentIDToSourceIdx(TY_COMPONENT_DEPTH_CAM));
     if(ret) {
         has_undist_data = false;
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "TYEnumSetValue set SourceSelector to depth failed: " << ret);
@@ -372,7 +486,7 @@ TY_STATUS GigE_2_1::color_stream_aec_roi_init(const TY_AEC_ROI_PARAM& ROI)
     auto source = CamComponentIDToSourceIdx(TY_COMPONENT_RGB_CAM);
     if(source < 0) return TY_STATUS_INVALID_PARAMETER;
 
-    TY_STATUS status = TYEnumSetValue(hDevice, "SourceSelector", source);
+    TY_STATUS status = source_init(source);
     if(status) {
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "SourceSelector init failed: " << status);
         return status;
@@ -431,6 +545,19 @@ TY_STATUS GigE_2_1::send_soft_trigger_signal()
 void GigE_2_1::reset()
 {
     TYCommandExec(hDevice, "DeviceReset");
+}
+
+TY_STATUS GigE_2_1::source_init(int64_t source)
+{
+  int64_t m_current_source;
+  TY_STATUS status = TYEnumGetValue(hDevice, "SourceSelector", &m_current_source);
+  if(status) {
+      RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "SourceSelector read failed: " << status);
+      return status;
+  }
+
+  if(source == m_current_source) return TY_STATUS_OK;
+  return TYEnumSetValue(hDevice, "SourceSelector", source);
 }
 
 TY_STATUS GigE_2_1::fix_device_frame_rate(float& rate)

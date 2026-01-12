@@ -150,6 +150,26 @@ void PercipioCameraNode::getParameters() {
 
     setAndGetNodeParameter(color_point_cloud_enable, "color_point_cloud_enable", false);
 
+    setAndGetNodeParameter(ir_undistortion, "ir_undistortion", true);
+
+    static std::map<std::string, ir_enhance_model> ir_enhancement_list = {
+        {"off",           IREnhanceOFF},
+        {"linear",        IREnhanceLinearStretch},
+        {"multi_linear",  IREnhanceLinearStretch_Multi},
+        {"std_linear",    IREnhanceLinearStretch_STD},
+        {"log",           IREnhanceLinearStretch_LOG2},
+        {"hist",          IREnhanceLinearStretch_Hist}
+    };
+    
+    std::string enhance_mode_desc;
+    setAndGetNodeParameter<std::string>(enhance_mode_desc, "ir_enhancement", "off");
+    auto iter = ir_enhancement_list.find(enhance_mode_desc);
+    if(iter != ir_enhancement_list.end()) 
+        ir_enhance_mode = ir_enhancement_list[enhance_mode_desc];
+    else
+        ir_enhance_mode = IREnhanceOFF;
+    setAndGetNodeParameter(ir_enhancement_coefficient_, "ir_enhancement_coefficient", 6);
+
     if(color_point_cloud_enable)
         depth_registration_enable = true;
 
@@ -161,6 +181,12 @@ void PercipioCameraNode::getParameters() {
 }
 
 void PercipioCameraNode::setupDevices() {
+    device_ptr->depth_speckle_filter_init(depth_speckle_filter_enable, max_speckle_size, max_speckle_diff, max_physical_size);
+    device_ptr->dpeth_time_domain_filter_init(depth_time_domain_filter_enable, depth_time_domain_num);
+
+    device_ptr->ir_enhance_mode_init(ir_enhance_mode, ir_enhancement_coefficient_);
+    device_ptr->ir_undistortion_enable(ir_undistortion);
+
     if(!device_ptr->hasColor()) {
         RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Color image data stream is not supported!");
         stream_enable[COLOR_STREAM] = false;
@@ -217,9 +243,6 @@ void PercipioCameraNode::setupDevices() {
     device_ptr->topics_point_cloud_enable(point_cloud_enable);
     device_ptr->topics_color_point_cloud_enable(color_point_cloud_enable);
     device_ptr->topics_depth_registration_enable(depth_registration_enable);
-
-    device_ptr->depth_speckle_filter_init(depth_speckle_filter_enable, max_speckle_size, max_speckle_diff, max_physical_size);
-    device_ptr->dpeth_time_domain_filter_init(depth_time_domain_filter_enable, depth_time_domain_num);
 
     if(stream_enable[DEPTH_STREAM])
         f_depth_scale = device_ptr->getDepthValueScale();

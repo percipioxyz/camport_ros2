@@ -19,6 +19,15 @@ public:
 
     virtual TY_STATUS stream_calib_data_init(const TY_COMPONENT_ID comp, TY_CAMERA_CALIB_INFO& calib_data);
 
+    virtual TY_STATUS EnableHwIRUndistortion();
+
+    virtual TY_STATUS getIRLensType(TYLensOpticalType& type);
+    virtual TY_STATUS getIRRectificationMode(percipio_rectification_mode& mode);
+    virtual TY_STATUS getLeftIRRotation(TY_CAMERA_ROTATION& rotation);
+    virtual TY_STATUS getLeftIRRectifiedIntr(TY_CAMERA_INTRINSIC& rectified_intr);
+    virtual TY_STATUS getRightIRRotation(TY_CAMERA_ROTATION& rotation);
+    virtual TY_STATUS getRightIRRectifiedIntr(TY_CAMERA_INTRINSIC& rectified_intr);
+
     virtual void depth_stream_distortion_check(bool& has_undist_data);
 
     virtual TY_STATUS depth_scale_unit_init(float& dept_scale_unit);

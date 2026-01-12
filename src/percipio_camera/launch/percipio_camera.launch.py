@@ -34,6 +34,7 @@ def launch_setup(context, *args, **kwargs):
         'depth_time_domain_filter',
         'point_cloud_enable',
         'color_point_cloud_enable',
+        'ir_undistortion',
         'left_ir_enable'
     ]
     
@@ -42,11 +43,7 @@ def launch_setup(context, *args, **kwargs):
         'max_speckle_size',
         'max_speckle_diff',
         'depth_time_domain_num',
-        'tof_modulation_threshold',
-        'tof_jitter_threshold',
-        'tof_filter_threshold',
-        'tof_channel',
-        'tof_HDR_ratio'
+        'ir_enhancement_coefficient'
     ]
     
     float_params = [
@@ -205,6 +202,42 @@ def generate_launch_description():
         # point_cloud_enable will be automatically set to false
         DeclareLaunchArgument('color_point_cloud_enable', default_value='true'),
         DeclareLaunchArgument('point_cloud_qos', default_value='default'),
+q
+        #  IR image enhancement method selection. Choose from:-->
+        #     'off'           - Disable IR image enhancement-->
+        #     'linear'        - Linear stretch (excludes 10% borders, stretches to full 0-255 range)-->
+        #     'multi_linear'  - Multiplicative linear stretch (scales by coefficient, different for 8/16-bit)-->
+        #     'std_linear'    - Standard deviation-based stretch (uses image statistics for dynamic range adjustment)-->
+        #     'log'           - Logarithmic stretch (enhances low-intensity regions using log2 transformation)-->
+        #     'hist'          - Histogram equalization (redistributes intensities for maximum contrast)-->
+        #  Note: Only 'multi_linear', 'std_linear', and 'log' methods use the coefficient parameter.-->
+        #  Default: 'off' (no enhancement applied)."-->
+        DeclareLaunchArgument('ir_enhancement', default_value='std_linear'),
+
+        #  "Coefficient parameter for specific IR enhancement methods. -->
+        #     This parameter affects three enhancement methods:-->
+        #       1. 'multi_linear' method:-->
+        #          - For 8-bit images: pixel_value x coefficient-->
+        #          - For 16-bit images: pixel_value x (coefficient / 255.0)-->
+        #          - Recommended range: 1-20 (values > 1 increase brightness)-->
+        #       2. 'std_linear' method:-->
+        #          - Normalization factor = (std_dev x coefficient) + 1.0-->
+        #          - Higher values create more aggressive stretching-->
+        #          - Recommended range: 3-10-->
+        #       3. 'log' method:-->
+        #          - Output = coefficient x log2(pixel_value + 1)-->
+        #          - Higher values increase contrast in low-intensity regions-->
+        #          - Recommended range: 10-30-->
+        #     This parameter is ignored for 'linear', 'hist', and 'off' modes.-->
+        #     Default: 6 (balanced value for most applications)."-->
+        DeclareLaunchArgument('ir_enhancement_coefficient', default_value='9'),
+
+        # IR Image Rectification Switch
+        # Note: The rectification logic for IR images varies across different camera models:
+        #    1. For binocular stereo 3D cameras, IR image rectification is automatically performed by the camera's internal hardware.
+        #    2. For TOF cameras, IR image rectification requires reading distortion parameters from the camera and performing distortion correction processing on the host computer.
+        #    3. For line-scan 3D cameras, IR image rectification requires reading calibration data from the camera and performing epipolar rectification processing on the host computer.  
+        DeclareLaunchArgument('ir_undistortion', default_value='true'),
 
         DeclareLaunchArgument('left_ir_enable', default_value='false'),
         DeclareLaunchArgument('left_ir_qos', default_value='default'),
