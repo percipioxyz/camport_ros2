@@ -202,7 +202,7 @@ def generate_launch_description():
         # point_cloud_enable will be automatically set to false
         DeclareLaunchArgument('color_point_cloud_enable', default_value='true'),
         DeclareLaunchArgument('point_cloud_qos', default_value='default'),
-q
+
         #  IR image enhancement method selection. Choose from:-->
         #     'off'           - Disable IR image enhancement-->
         #     'linear'        - Linear stretch (excludes 10% borders, stretches to full 0-255 range)-->
