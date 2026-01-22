@@ -566,7 +566,7 @@ TY_STATUS GigE_2_1::fix_device_frame_rate(float& rate)
     double target_fps = static_cast<double>(rate);
     TY_STATUS status = TYBooleanSetValue(hDevice, "AcquisitionFrameRateEnable", true);
     if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to set AcquisitionFrameRateEnable to false, error: " << status);
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to set AcquisitionFrameRateEnable to true, error: " << status);
         return status;
     }
 
