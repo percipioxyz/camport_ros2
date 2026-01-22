@@ -564,7 +564,13 @@ TY_STATUS GigE_2_1::fix_device_frame_rate(float& rate)
 {
     double min = 0, max = 0;
     double target_fps = static_cast<double>(rate);
-    TY_STATUS status = TYFloatGetMin(hDevice, "AcquisitionFrameRate", &min);
+    TY_STATUS status = TYBooleanSetValue(hDevice, "AcquisitionFrameRateEnable", true);
+    if(status != TY_STATUS_OK) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to set AcquisitionFrameRateEnable to false, error: " << status);
+        return status;
+    }
+
+    status = TYFloatGetMin(hDevice, "AcquisitionFrameRate", &min);
     if(status != TY_STATUS_OK) {
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to get minimum frame rate from device. error: " << status);
         min = 1.0;
@@ -588,11 +594,6 @@ TY_STATUS GigE_2_1::fix_device_frame_rate(float& rate)
     if(status) {
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to set frame rate to " << target_fps << " FPS. error:" << status);
     } else {
-        status = TYBooleanSetValue(hDevice, "AcquisitionFrameRateEnable", true);
-        if(status != TY_STATUS_OK) {
-            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to set AcquisitionFrameRateEnable to false, error: " << status);
-            return status;
-        }
         rate = static_cast<float>(rate);
     }
 
