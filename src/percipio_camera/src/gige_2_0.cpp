@@ -144,7 +144,7 @@ TY_STATUS GigE_2_0::work_mode_init(percipio_dev_workmode mode, const bool fix_ra
     }
 
     soft_frame_rate_ctrl_enable = false;
-    if(mode == CONTINUS) {
+    if(mode == CONTINUOUS) {
         if(fix_rate) {
             //try use m per mode
             trigger.mode = TY_TRIGGER_MODE_M_PER;

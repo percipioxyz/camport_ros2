@@ -109,7 +109,7 @@ bool PercipioCameraNodeDriver::initializeDevice(const TY_DEVICE_BASE_INFO& devic
     else if(device_workmode_ == "trigger_hard")
         percipio_device->set_workmode(HARDTRIGGER);
     else
-        percipio_device->set_workmode(CONTINUS);
+        percipio_device->set_workmode(CONTINUOUS);
     
     percipio_device->registerCameraEventCallback(boost::bind(&PercipioCameraNodeDriver::onCameraEventCallback, this, _1, _2));
 

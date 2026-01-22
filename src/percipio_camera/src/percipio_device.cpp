@@ -1094,7 +1094,7 @@ void PercipioDevice::frameDataReceive() {
     //m_softtrigger_ready = false;
 
     switch(workmode) {
-        case CONTINUS:
+        case CONTINUOUS:
             RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device now work at continuous mode.");
             break;
         case SOFTTRIGGER:
@@ -1111,7 +1111,7 @@ void PercipioDevice::frameDataReceive() {
     fps_counter.reset();
     while (rclcpp::ok() && is_running_.load()) {
         TY_FRAME_DATA frame;
-        if(workmode == CONTINUS || workmode == HARDTRIGGER) {
+        if(workmode == CONTINUOUS || workmode == HARDTRIGGER) {
             status = TYFetchFrame(handle, &frame, 2000);
         } else if(workmode == SOFTTRIGGER) {
             status = TYFetchFrame(handle, &frame, 200);
@@ -1226,8 +1226,8 @@ void PercipioDevice::frameDataReceive() {
 bool PercipioDevice::stream_start()
 {
     if(b_dev_frame_rate_ctrl_en) {
-        if(workmode != CONTINUS) {
-            workmode = CONTINUS;
+        if(workmode != CONTINUOUS) {
+            workmode = CONTINUOUS;
             RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "The device has enabled the fixed frame rate output mode, the operating mode is force-switched to continuous output mode.");
         }
     }

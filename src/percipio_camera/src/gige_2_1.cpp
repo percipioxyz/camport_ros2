@@ -146,7 +146,7 @@ TY_STATUS GigE_2_1::work_mode_init(percipio_dev_workmode mode, const bool fix_ra
     TY_STATUS status = TY_STATUS_OK;
     soft_frame_rate_ctrl_enable = false;
     switch(mode) {
-        case CONTINUS: {
+        case CONTINUOUS: {
             status = TYEnumSetString(hDevice, "AcquisitionMode", "Continuous");
             if(status != TY_STATUS_OK) {
                 RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to set AcquisitionMode to Continuous mode, error: " << status);
