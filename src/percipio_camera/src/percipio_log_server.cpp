@@ -134,7 +134,7 @@ void PercipioTcpLogServer::run() {
             std::string client_ip = inet_ntoa(client_addr.sin_addr);
             int client_port = ntohs(client_addr.sin_port);
 
-            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_LOG_SERVER), "Client connected: %s" << client_ip << ":" << client_port);
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_LOG_SERVER), "Client connected: " << client_ip << ":" << client_port);
 
             // Set client socket to non-blocking
             setNonBlocking(client_fd);
