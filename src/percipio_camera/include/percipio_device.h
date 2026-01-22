@@ -32,7 +32,7 @@ enum percipio_rectification_mode{
 };
 
 enum percipio_dev_workmode {
-    CONTINUS = 0,
+    CONTINUOUS = 0,
     SOFTTRIGGER,
     HARDTRIGGER,
 };
@@ -258,7 +258,7 @@ class PercipioDevice
         bool b_dev_auto_reconnect = false;
         bool reconnect = false;
 
-        percipio_dev_workmode workmode = CONTINUS;
+        percipio_dev_workmode workmode = CONTINUOUS;
 
         bool b_dev_frame_rate_ctrl_en = false;
         float f_dev_frame_rate = 5.f;
