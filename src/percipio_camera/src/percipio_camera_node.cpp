@@ -637,9 +637,14 @@ void PercipioCameraNode::publishPointCloud(percipio_camera::VideoStream& stream)
     }
 
     point_cloud_msg->is_dense = true;
+#ifdef PUBLISH_INVALID_POINT_CLOUD_DATA
+    point_cloud_msg->width = m_width;
+    point_cloud_msg->height = m_height;
+#else
     point_cloud_msg->width = valid_count;
     point_cloud_msg->height = 1;
     modifier.resize(valid_count);
+#endif
     
     point_cloud_msg->header.stamp = HWTimeUsToROSTime(stream.getPointCloudStramTimestamp());
     point_cloud_msg->header.frame_id = optical_frame_id[DEPTH_STREAM];
