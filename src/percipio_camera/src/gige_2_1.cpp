@@ -218,6 +218,8 @@ void GigE_2_1::device_load_parameters()
 
         const std::string& source = iter.first;
         auto target_source = source_list.find(source);
+
+        bool skip_current_source = false;
         if(target_source != source_list.end()) {
             char szSourceString[200];
             status = TYEnumGetString(hDevice, "SourceSelector", szSourceString, sizeof(szSourceString));
@@ -232,10 +234,15 @@ void GigE_2_1::device_load_parameters()
                 status = TYEnumSetString(hDevice, "SourceSelector", source.c_str());
                 if(status) {
                     RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_1), "Failed to write SourceSelector: " << status);
-                    continue;
+                    skip_current_source = true;
+                } else {
+                    m_current_source = source;
                 }
-                m_current_source = source;
             }
+        }
+
+        if(skip_current_source) {
+            continue;
         }
 
         for(auto& feat : iter.second) {
