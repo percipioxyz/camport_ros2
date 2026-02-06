@@ -447,7 +447,7 @@ bool GigE_2_0::parameter_init(const std::string& source, const std::string& feat
         }
 
         case TY_FEATURE_BOOL: {
-            bool val = static_cast<bool>(atof(str_val.c_str()));
+            bool val = static_cast<bool>(atoi(str_val.c_str()));
             status = TYSetBool(hDevice, comp, feat_id, val);
             break;
         }
