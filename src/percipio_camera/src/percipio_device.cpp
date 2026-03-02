@@ -1140,7 +1140,10 @@ void PercipioDevice::frameDataReceive() {
 
                         if(b_depth_spk_filter_en) {
                             DepthSpeckleFilterParameters param = {m_depth_spk_size, m_depth_spk_diff, f_depth_spk_phy_size};
-                            TYDepthSpeckleFilter(&frame.image[i], &param, &cam_depth_calib_data, f_scale_unit);
+                            if(f_depth_spk_phy_size <= 0)
+                                TYDepthSpeckleFilter(&frame.image[i], &param, nullptr, f_scale_unit);
+                            else
+                                TYDepthSpeckleFilter(&frame.image[i], &param, &cam_depth_calib_data, f_scale_unit);
                         }
 
                         if(b_depth_time_domain_en) {
