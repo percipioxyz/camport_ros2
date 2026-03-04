@@ -12,7 +12,7 @@
 #if defined(ROS_HUMBLE)
 #include <cv_bridge/cv_bridge/cv_bridge.h>
 #else
-#include <cv_bridge/cv_bridge.h>
+#include <cv_bridge/cv_bridge.hpp>
 #endif
 
 #include "percipio_video_mode.h"

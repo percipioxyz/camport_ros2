@@ -17,6 +17,18 @@
   <exec_depend>rcl</exec_depend>
   <exec_depend>rmw_implementation</exec_depend>
   <exec_depend>rosidl_default_runtime</exec_depend>
+
+  <depend>camera_info_manager</depend>
+  <depend>cv_bridge</depend>
+  <depend>diagnostic_updater</depend>
+  <depend>diagnostic_msgs</depend>
+  <depend>image_publisher</depend>
+  <depend>image_transport</depend>
+  <depend>tf2</depend>
+  <depend>tf2_eigen</depend>
+  <depend>tf2_msgs</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_sensor_msgs</depend>
  
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
