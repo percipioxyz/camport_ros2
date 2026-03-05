@@ -81,6 +81,7 @@ set(SOURCE_FILES
   src/TYThread.cpp
   src/percipio_depth_algorithm.cpp
   src/huffman.cpp
+#  src/percipio_firmware_update.cpp
 )
 
 file(GLOB_RECURSE LEGACY_SOURCES
@@ -100,6 +101,12 @@ set(SOURCE_INCLUDES_DIR
 set(SDK_INCLUDE_DIRS
   ${TYCam_INCLUDE_DIRS}
 )
+
+if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64")
+    add_executable(firmware_update src/percipio_firmware_update.cpp)
+    target_link_libraries(firmware_update ${TYUp_LIBS})
+endif()
+
 
 macro(add_percipio_ros_executable TARGET SOURCE)
   add_executable(${TARGET} ${SOURCE} src/TYThread.cpp)

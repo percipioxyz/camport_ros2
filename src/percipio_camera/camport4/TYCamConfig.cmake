@@ -84,4 +84,24 @@ else()
     endif()
 endif()
 
+set(ABSOLUTE_TYFIRMWAREUPDATE_LIB PercipioFirmwareUpdate)
+add_library(${ABSOLUTE_TYFIRMWAREUPDATE_LIB} SHARED IMPORTED)
+
+if (MSVC)#for windows
+    if(CMAKE_CL_64) #x64
+        set_property(TARGET ${ABSOLUTE_TYFIRMWAREUPDATE_LIB} PROPERTY IMPORTED_LOCATION ${LIB_ROOT_PATH}/x64/libPercipioFirmwareUpdate.dll)
+        set_property(TARGET ${ABSOLUTE_TYFIRMWAREUPDATE_LIB} PROPERTY IMPORTED_IMPLIB  ${LIB_ROOT_PATH}/x64/libPercipioFirmwareUpdate.lib)
+    else()
+        set_property(TARGET ${ABSOLUTE_TYFIRMWAREUPDATE_LIB} PROPERTY IMPORTED_LOCATION ${LIB_ROOT_PATH}/x86/libPercipioFirmwareUpdate.dll)
+        set_property(TARGET ${ABSOLUTE_TYFIRMWAREUPDATE_LIB} PROPERTY IMPORTED_IMPLIB ${LIB_ROOT_PATH}/x86/libPercipioFirmwareUpdate.lib)
+    endif()
+else()
+    if(ARCH)
+        set_property(TARGET ${ABSOLUTE_TYFIRMWAREUPDATE_LIB} PROPERTY IMPORTED_LOCATION ${TYCAM_LIB_PATH}/lib/linux/lib_${ARCH}/libPercipioFirmwareUpdate.so)
+    else()
+        set(ABSOLUTE_TYFIRMWAREUPDATE_LIB -lPercipioFirmwareUpdate)
+    endif()
+endif()
+
+set(TYUp_LIBS ${ABSOLUTE_TYFIRMWAREUPDATE_LIB})
 set(TYCam_LIBS ${TYCam_LIBS} ${ABSOLUTE_TYCAM_LIB} ${ABSOLUTE_TYIMGPROC_LIB})
