@@ -54,6 +54,13 @@ find_package(nav_msgs REQUIRED)
 find_package(tf2_geometry_msgs  REQUIRED)
 find_package(cv_bridge REQUIRED)
 
+get_target_property(CV_BRIDGE_INCLUDE_DIRS cv_bridge::cv_bridge INTERFACE_INCLUDE_DIRECTORIES)
+if(cv_bridge_VERSION VERSION_GREATER_EQUAL "3.3.0")
+    add_definitions(-DUSE_CV_BRIDGE_HPP=1)
+else()
+    add_definitions(-DUSE_CV_BRIDGE_HPP=0)
+endif()
+
 if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "i686")
   set(ARCH i686)
 elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64")
