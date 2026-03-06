@@ -16,45 +16,38 @@ endif()
 set(dependencies
   ament_cmake
   ament_index_cpp
-  Eigen3
   builtin_interfaces
-  cv_bridge
   camera_info_manager
-  image_transport
+  cv_bridge
+  diagnostic_msgs
+  diagnostic_updater
+  Eigen3
+  geometry_msgs
   image_publisher
+  image_transport
+  lifecycle_msgs
+  nav_msgs
+  pcl_conversions
   rclcpp
   rclcpp_components
+  rclcpp_lifecycle
   sensor_msgs
   std_msgs
   std_srvs
   tf2
   tf2_eigen
+  tf2_geometry_msgs
   tf2_msgs
   tf2_ros
   tf2_sensor_msgs
-  Threads
-  diagnostic_updater
-  diagnostic_msgs
 )
 
 foreach (dep IN LISTS dependencies)
   find_package(${dep} REQUIRED)
 endforeach ()
 
-#find_package(ament_cmake REQUIRED)
-#find_package(rclcpp REQUIRED)
-find_package(pcl_conversions REQUIRED)
-#find_package(sensor_msgs REQUIRED)
+find_package(Threads REQUIRED)
 
-find_package(rclcpp_lifecycle REQUIRED)
-find_package(lifecycle_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(nav_msgs REQUIRED)
-#find_package(tf2_ros REQUIRED)
-find_package(tf2_geometry_msgs  REQUIRED)
-find_package(cv_bridge REQUIRED)
-
-get_target_property(CV_BRIDGE_INCLUDE_DIRS cv_bridge::cv_bridge INTERFACE_INCLUDE_DIRECTORIES)
 if(cv_bridge_VERSION VERSION_GREATER_EQUAL "3.3.0")
     add_definitions(-DUSE_CV_BRIDGE_HPP=1)
 else()
@@ -109,16 +102,15 @@ set(SDK_INCLUDE_DIRS
 )
 
 macro(add_percipio_ros_executable TARGET SOURCE)
-  add_executable(${TARGET} ${SOURCE} src/TYThread.cpp)
+  add_executable(${TARGET} ${SOURCE})
   #target_include_directories(${TARGET} PUBLIC ${SDK_INCLUDE_DIRS} ${SOURCE_INCLUDES_DIR})
+  ament_target_dependencies(${TARGET} ${dependencies})
   target_include_directories(${TARGET} SYSTEM PUBLIC ${SDK_INCLUDE_DIRS})
   target_include_directories(${TARGET} PUBLIC ${SOURCE_INCLUDES_DIR})
-  target_link_libraries(${TARGET} ${TYCam_LIBS} ${PROJECT_NAME})
-  ament_target_dependencies(${TARGET} ${dependencies})
+  target_link_libraries(${TARGET} ${TYCam_LIBS} ${PROJECT_NAME} Threads::Threads)
 endmacro()
 
 add_percipio_ros_executable(list_devices src/list_devices.cpp)
-
 add_percipio_ros_executable(network_ip_config src/network_ip_config.cpp)
 
 message(STATUS "PLC version: ${PLC_VERSION}")
