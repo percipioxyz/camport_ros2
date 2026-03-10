@@ -6,7 +6,8 @@ deb依赖项:
     ros-$ROS_DISTRO-diagnostic-msgs
 
 1. build project:
-    colcon build --event-handlers  console_direct+  --cmake-args  -DCMAKE_BUILD_TYPE=Release
+    colcon build --event-handlers  console_direct+  --cmake-args  -DCMAKE_BUILD_TYPE=Release -DARCH=${TARGET_ARCH}
+    Compile source code.  "${TARGET_ARCH}" should be one of Aarch64/x64
 
 2. config system env:
     source ./install/setup.bash
