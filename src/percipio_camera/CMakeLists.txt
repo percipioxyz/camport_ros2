@@ -69,6 +69,9 @@ endif()
 find_package(TYCam REQUIRED PATHS ${CMAKE_CURRENT_SOURCE_DIR}/camport4 NO_DEFAULT_PATH)
 include_directories(${TYCam_INCLUDE_DIRS})
 
+find_package(PercipioFirmwareUpdate REQUIRED PATHS ${CMAKE_CURRENT_SOURCE_DIR}/camport4 NO_DEFAULT_PATH)
+include_directories(${PercipioFirmwareUpdate_INCLUDE_DIRS})
+
 set(SOURCE_FILES
   src/percipio_camera_node_driver.cpp
   src/percipio_camera_node.cpp
@@ -81,7 +84,6 @@ set(SOURCE_FILES
   src/TYThread.cpp
   src/percipio_depth_algorithm.cpp
   src/huffman.cpp
-#  src/percipio_firmware_update.cpp
 )
 
 file(GLOB_RECURSE LEGACY_SOURCES
@@ -102,10 +104,11 @@ set(SDK_INCLUDE_DIRS
   ${TYCam_INCLUDE_DIRS}
 )
 
-if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64")
-    add_executable(firmware_update src/percipio_firmware_update.cpp)
-    target_link_libraries(firmware_update ${TYUp_LIBS})
-endif()
+
+add_executable(firmware_update src/percipio_firmware_update.cpp)
+target_include_directories(firmware_update SYSTEM PUBLIC ${PercipioFirmwareUpdate_INCLUDE_DIRS})
+target_link_libraries(firmware_update ${PercipioFirmwareUpdate_LIB})
+
 
 
 macro(add_percipio_ros_executable TARGET SOURCE)
