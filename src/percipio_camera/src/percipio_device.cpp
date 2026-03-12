@@ -276,13 +276,13 @@ int GigEBase::parse_xml_parameters(const std::string& xml)
 {
     parameters.clear();
     std::string wrappedXML = WrapXML(xml);
-    tinyxml2::XMLError err = m_doc.Parse(wrappedXML.c_str());
-    if( err != tinyxml2::XML_SUCCESS ){
+    percipio_ros2_tinyxml2::XMLError err = m_doc.Parse(wrappedXML.c_str());
+    if( err != percipio_ros2_tinyxml2::XML_SUCCESS ){
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "xml parse failed");
         return -1;
     }
   
-    tinyxml2::XMLElement* m_root = m_doc.RootElement();
+    percipio_ros2_tinyxml2::XMLElement* m_root = m_doc.RootElement();
     if(!m_root){
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "found no root element");
         return -1;
