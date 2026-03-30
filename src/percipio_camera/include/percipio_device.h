@@ -182,7 +182,7 @@ protected:
     bool soft_frame_rate_ctrl_enable = false;
     float soft_frame_rate = 5.f;
 
-    tinyxml2::XMLDocument m_doc;
+    percipio_ros2_tinyxml2::XMLDocument m_doc;
     percipio_feat_info parameters;
 };
 

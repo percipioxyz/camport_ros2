@@ -9,8 +9,8 @@
 
 #include "percipio_camera_node.h"
 
-#if defined(ROS_HUMBLE)
-#include <cv_bridge/cv_bridge/cv_bridge.h>
+#if USE_CV_BRIDGE_HPP
+#include <cv_bridge/cv_bridge.hpp>
 #else
 #include <cv_bridge/cv_bridge.h>
 #endif
