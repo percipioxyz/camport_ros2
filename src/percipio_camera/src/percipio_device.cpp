@@ -892,7 +892,7 @@ void PercipioDevice::rightIRStreamReceive(TYImage& ir, uint64_t& timestamp)
     }
 }
 
-void PercipioDevice::depthStreamReceive(TYImage& depth, uint64_t& timestamp)
+void PercipioDevice::depthStreamReceive(TYImage& depth, uint64_t& timestamp, int32_t  target_width, int32_t target_height)
 {
     TYImage targetDepth;
     if(depth.empty()) return;
@@ -923,7 +923,8 @@ void PercipioDevice::depthStreamReceive(TYImage& depth, uint64_t& timestamp)
         }
 
         if(topics_d_registration_) {
-            TYImage out = TYImage(targetDepth.width(), targetDepth.height(), TYPixelFormatCoord3D_C16);
+            //TYImage out = TYImage(targetDepth.width(), targetDepth.height(), TYPixelFormatCoord3D_C16);
+            TYImage out = TYImage(target_width, target_height, TYPixelFormatCoord3D_C16);
             TYMapDepthImageToColorCoordinate(&cam_depth_calib_data,
                 targetDepth.width(), targetDepth.height(), (const uint16_t*)targetDepth.data(),
                 &cam_color_calib_data,
@@ -1126,6 +1127,15 @@ void PercipioDevice::frameDataReceive() {
                 RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "fps = " << fps);
             }
 
+            int32_t m_color_width = 0;
+            int32_t m_color_height = 0;
+            for (int i = 0; i < frame.validCount; i++){
+                if (frame.image[i].status == TY_STATUS_OK && frame.image[i].componentID == TY_COMPONENT_COLOR_CAM) {
+                    m_color_width = frame.image[i].width;
+                    m_color_height = frame.image[i].height;
+                }
+            }
+
             for (int i = 0; i < frame.validCount; i++){
                 if (frame.image[i].status != TY_STATUS_OK) continue;
 
@@ -1157,7 +1167,7 @@ void PercipioDevice::frameDataReceive() {
                     } else if((uint32_t)frame.image[i].pixelFormat == TYPixelFormatCoord3D_ABC16) {
                         depth = TYImage(frame.image[i].width, frame.image[i].height, TYPixelFormatCoord3D_ABC16, frame.image[i].buffer);
                     }
-                    depthStreamReceive(depth, frame.image[i].timestamp);
+                    depthStreamReceive(depth, frame.image[i].timestamp, m_color_width, m_color_height);
                     p3dStreamReceive(depth, frame.image[i].timestamp);
                 }
 
@@ -1250,7 +1260,7 @@ bool PercipioDevice::stream_start()
 
     status = TYStartCapture(handle);
     if(status != TY_STATUS_OK) {
-      RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed  to Start capture, error: " << status);
+      RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to start capture, error: " << status);
       return false;
     }
 

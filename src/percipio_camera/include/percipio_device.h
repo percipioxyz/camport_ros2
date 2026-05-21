@@ -343,7 +343,7 @@ class PercipioDevice
         void colorStreamReceive(const TYImage& color, uint64_t& timestamp);
         void leftIRStreamReceive(TYImage& ir,   uint64_t& timestamp);
         void rightIRStreamReceive(TYImage& ir,  uint64_t& timestamp);
-        void depthStreamReceive(TYImage& depth, uint64_t& timestamp);
+        void depthStreamReceive(TYImage& depth, uint64_t& timestamp, int32_t target_width, int32_t target_height);
         void p3dStreamReceive(const TYImage& depth,   uint64_t& timestamp);
 };
 }
