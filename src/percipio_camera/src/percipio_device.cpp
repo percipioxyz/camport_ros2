@@ -1130,7 +1130,7 @@ void PercipioDevice::frameDataReceive() {
             int32_t m_color_width = 0;
             int32_t m_color_height = 0;
             for (int i = 0; i < frame.validCount; i++){
-                if (frame.image[i].status == TY_STATUS_OK && frame.image[i].componentID == TY_COMPONENT_COLOR_CAM) {
+                if (frame.image[i].status == TY_STATUS_OK && frame.image[i].componentID == TY_COMPONENT_RGB_CAM) {
                     m_color_width = frame.image[i].width;
                     m_color_height = frame.image[i].height;
                 }
