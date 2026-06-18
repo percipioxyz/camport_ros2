@@ -24,9 +24,9 @@
 #  Version variables:
 # ======================================================
 SET(PercipioFirmwareUpdate_VERSION_MAJOR  1)
-SET(PercipioFirmwareUpdate_VERSION_MINOR  1)
-SET(PercipioFirmwareUpdate_VERSION_PATCH  0)
-SET(PercipioFirmwareUpdate_VERSION 1.1.0)
+SET(PercipioFirmwareUpdate_VERSION_MINOR  0)
+SET(PercipioFirmwareUpdate_VERSION_PATCH  13)
+SET(PercipioFirmwareUpdate_VERSION 1.0.13)
 
 include(FindPackageHandleStandardArgs)
 
@@ -50,7 +50,7 @@ set(PercipioFirmwareUpdate_INCLUDE_DIRS ${PercipioFirmwareUpdate_INCLUDE_DIRS} "
 set(ABSOLUTE_FIRMWAREUPDATE_LIB PercipioFirmwareUpdate)
 add_library(${ABSOLUTE_FIRMWAREUPDATE_LIB} SHARED IMPORTED)
 if (MSVC)#for windows
-    set (LIB_ROOT_PATH ${FIRMWAREUPDATE_LIB_PATH}/lib/win/hostapp/)
+    set (LIB_ROOT_PATH ${FIRMWAREUPDATE_LIB_PATH}/lib/win/)
     if(CMAKE_CL_64) #x64
         set_property(TARGET ${ABSOLUTE_FIRMWAREUPDATE_LIB} PROPERTY IMPORTED_LOCATION ${LIB_ROOT_PATH}/x64/PercipioFirmwareUpdate.dll)
         set_property(TARGET ${ABSOLUTE_FIRMWAREUPDATE_LIB} PROPERTY IMPORTED_IMPLIB  ${LIB_ROOT_PATH}/x64/PercipioFirmwareUpdate.lib)

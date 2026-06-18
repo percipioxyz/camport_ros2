@@ -5,21 +5,17 @@
 #include <map>
 #include <vector>
 
-#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
-
-#include <tf2_ros/transform_listener.h>
-#include <tf2_ros/transform_broadcaster.h>
-#include <tf2_ros/static_transform_broadcaster.h>
-#include <geometry_msgs/msg/transform_stamped.hpp>
-
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <std_msgs/msg/empty.hpp>
 
-#include <image_publisher/image_publisher.hpp>
-#include <image_transport/publisher.hpp>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/static_transform_broadcaster.h>
+#include <geometry_msgs/msg/transform_stamped.hpp>
 
 #include "TYApi.h"
 #include "percipio_device.h"
@@ -71,7 +67,7 @@ class PercipioCameraNode {
 
         std::map<percipio_stream_index_pair, std::string>   frame_id_;
         std::map<percipio_stream_index_pair, std::string>   optical_frame_id_;
-        std::map<percipio_stream_index_pair, image_transport::Publisher> image_publishers_;
+        std::map<percipio_stream_index_pair, rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr> image_publishers_;
         std::map<percipio_stream_index_pair, rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr> camera_info_publishers_;
 
         rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_pub_;
