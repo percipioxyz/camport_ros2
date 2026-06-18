@@ -23,7 +23,7 @@ namespace percipio_camera {
 
 const static percipio_stream_index_pair DEPTH_STREAM{DEPTH, 0};
 const static percipio_stream_index_pair COLOR_STREAM{COLOR, 0};
-const static percipio_stream_index_pair LEFT_IR_STREAM{IR_LETF, 0};
+const static percipio_stream_index_pair LEFT_IR_STREAM{IR_LEFT, 0};
 const static percipio_stream_index_pair RIGHT_IR_STREAM{IR_RIGHT, 0};
 const static std::vector<percipio_stream_index_pair> PERCIPIO_IMAGE_STREAMS = {DEPTH_STREAM, COLOR_STREAM, LEFT_IR_STREAM, RIGHT_IR_STREAM};
 
@@ -59,20 +59,20 @@ static rmw_qos_profile_t getRMWQosProfileFromString(const std::string &str_qos) 
 
 PercipioCameraNode::PercipioCameraNode(rclcpp::Node* node, std::shared_ptr<PercipioDevice>& device) 
         :node_(node),
-    device_ptr(device) {
-    stream_name[DEPTH_STREAM] = "depth";
-    stream_name[COLOR_STREAM] = "color";
-    stream_name[LEFT_IR_STREAM] = "left_ir";
-    stream_name[RIGHT_IR_STREAM] = "right_ir";
-    device_ptr->register_node(this);
+    device_ptr_(device) {
+    stream_name_[DEPTH_STREAM] = "depth";
+    stream_name_[COLOR_STREAM] = "color";
+    stream_name_[LEFT_IR_STREAM] = "left_ir";
+    stream_name_[RIGHT_IR_STREAM] = "right_ir";
+    device_ptr_->register_node(this);
     setupTopics();
 }
 
 PercipioCameraNode::~PercipioCameraNode()
 {
   RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "PercipioCameraNode release...");
-  if(device_ptr.get()) {
-    device_ptr->stream_stop();
+  if(device_ptr_.get()) {
+    device_ptr_->stream_stop();
   }
 }
 
@@ -81,10 +81,8 @@ void PercipioCameraNode::setAndGetNodeParameter(
     T &param, const std::string &param_name, const T &default_value,
     const rcl_interfaces::msg::ParameterDescriptor &parameter_descriptor) {
     rclcpp::ParameterValue result_value(default_value);
-    //const rcl_interfaces::msg::ParameterDescriptor& descriptor = rcl_interfaces::msg::ParameterDescriptor();
-    const rcl_interfaces::msg::ParameterDescriptor& descriptor = parameter_descriptor;
     if (!node_->has_parameter(param_name)) {
-      result_value = node_->declare_parameter(param_name, rclcpp::ParameterValue(default_value), descriptor);
+      result_value = node_->declare_parameter(param_name, rclcpp::ParameterValue(default_value), parameter_descriptor);
     } else {
       result_value = node_->get_parameter(param_name).get_parameter_value();
     }
@@ -98,59 +96,59 @@ void PercipioCameraNode::getParameters() {
     std::string param_name_desc;
     for (auto index : PERCIPIO_IMAGE_STREAMS) {
         //stream enable
-        param_name_desc = stream_name[index] + "_enable";
-        setAndGetNodeParameter(stream_enable[index], param_name_desc, false);
+        param_name_desc = stream_name_[index] + "_enable";
+        setAndGetNodeParameter(stream_enable_[index], param_name_desc, false);
 
         //stream resolution
-        param_name_desc = stream_name[index] + "_resolution";
-        setAndGetNodeParameter<std::string>(stream_resolution[index], param_name_desc, "");
+        param_name_desc = stream_name_[index] + "_resolution";
+        setAndGetNodeParameter<std::string>(stream_resolution_[index], param_name_desc, "");
 
         //stream image format
-        param_name_desc = stream_name[index] + "_format";
-        setAndGetNodeParameter<std::string>(stream_image_mode[index], param_name_desc, "");
+        param_name_desc = stream_name_[index] + "_format";
+        setAndGetNodeParameter<std::string>(stream_image_mode_[index], param_name_desc, "");
 
         //qos setting
-        param_name_desc = stream_name[index] + "_qos";
-        setAndGetNodeParameter<std::string>(stream_qos[index], param_name_desc, "default");
+        param_name_desc = stream_name_[index] + "_qos";
+        setAndGetNodeParameter<std::string>(stream_qos_[index], param_name_desc, "default");
 
-        param_name_desc = stream_name[index] + "_camera_info_qos";
+        param_name_desc = stream_name_[index] + "_camera_info_qos";
         setAndGetNodeParameter<std::string>(camera_info_qos_[index], param_name_desc, "default");
 
-        frame_id[index] = camera_name_ + "_" + stream_name[index] + "_frame";
-        optical_frame_id[index] = camera_name_ + "_" + stream_name[index] + "_optical_frame";
+        frame_id_[index] = camera_name_ + "_" + stream_name_[index] + "_frame";
+        optical_frame_id_[index] = camera_name_ + "_" + stream_name_[index] + "_optical_frame";
     }
 
     //device offline auto reconnection
-    setAndGetNodeParameter(m_offline_auto_reconnection, "device_auto_reconnect", false);
+    setAndGetNodeParameter(offline_auto_reconnection_, "device_auto_reconnect", false);
 
     //device  frame rate control
-    setAndGetNodeParameter(device_frame_rate_control, "frame_rate_control", false);
-    setAndGetNodeParameter<float>(device_frame_rate, "frame_rate", 5.0);
+    setAndGetNodeParameter(device_frame_rate_control_, "frame_rate_control", false);
+    setAndGetNodeParameter<float>(device_frame_rate_, "frame_rate", 5.0);
     
     //laser power flag
-    setAndGetNodeParameter(m_laser_power, "laser_power", -1);
+    setAndGetNodeParameter(laser_power_, "laser_power", -1);
 
     //registration flag
-    setAndGetNodeParameter(depth_registration_enable, "depth_registration_enable", false);
+    setAndGetNodeParameter(depth_registration_enable_, "depth_registration_enable", false);
 
     //depth spec filter
-    setAndGetNodeParameter(depth_speckle_filter_enable, "depth_speckle_filter", false);
-    setAndGetNodeParameter(max_speckle_size, "max_speckle_size", 150);
-    setAndGetNodeParameter(max_speckle_diff, "max_speckle_diff", 64);
-    setAndGetNodeParameter<float>(max_physical_size, "max_physical_size", 20.0);
+    setAndGetNodeParameter(depth_speckle_filter_enable_, "depth_speckle_filter", false);
+    setAndGetNodeParameter(max_speckle_size_, "max_speckle_size", 150);
+    setAndGetNodeParameter(max_speckle_diff_, "max_speckle_diff", 64);
+    setAndGetNodeParameter<float>(max_physical_size_, "max_physical_size", 20.0);
 
     //depth time domain filter
-    setAndGetNodeParameter(depth_time_domain_filter_enable, "depth_time_domain_filter", false);
-    setAndGetNodeParameter(depth_time_domain_num, "depth_time_domain_num", 3);
+    setAndGetNodeParameter(depth_time_domain_filter_enable_, "depth_time_domain_filter", false);
+    setAndGetNodeParameter(depth_time_domain_num_, "depth_time_domain_num", 3);
 
     //point cloud qos setting
-    setAndGetNodeParameter<std::string>(point_cloud_qos, "point_cloud_qos", "default");
+    setAndGetNodeParameter<std::string>(point_cloud_qos_, "point_cloud_qos", "default");
 
-    setAndGetNodeParameter(point_cloud_enable, "point_cloud_enable", true);
+    setAndGetNodeParameter(point_cloud_enable_, "point_cloud_enable", true);
 
-    setAndGetNodeParameter(color_point_cloud_enable, "color_point_cloud_enable", false);
+    setAndGetNodeParameter(color_point_cloud_enable_, "color_point_cloud_enable", false);
 
-    setAndGetNodeParameter(ir_undistortion, "ir_undistortion", true);
+    setAndGetNodeParameter(ir_undistortion_, "ir_undistortion", true);
 
     static std::map<std::string, ir_enhance_model> ir_enhancement_list = {
         {"off",           IREnhanceOFF},
@@ -164,113 +162,110 @@ void PercipioCameraNode::getParameters() {
     std::string enhance_mode_desc;
     setAndGetNodeParameter<std::string>(enhance_mode_desc, "ir_enhancement", "off");
     auto iter = ir_enhancement_list.find(enhance_mode_desc);
-    if(iter != ir_enhancement_list.end()) 
-        ir_enhance_mode = ir_enhancement_list[enhance_mode_desc];
-    else
-        ir_enhance_mode = IREnhanceOFF;
+    ir_enhance_mode_ = (iter != ir_enhancement_list.end()) ? iter->second : IREnhanceOFF;
     setAndGetNodeParameter(ir_enhancement_coefficient_, "ir_enhancement_coefficient", 6);
 
-    if(color_point_cloud_enable)
-        depth_registration_enable = true;
+    if(color_point_cloud_enable_)
+        depth_registration_enable_ = true;
 
     //disable registration if color stream is closed
-    if (!stream_enable[COLOR_STREAM]) {
-        color_point_cloud_enable = false;
-        depth_registration_enable = false;
+    if (!stream_enable_[COLOR_STREAM]) {
+        color_point_cloud_enable_ = false;
+        depth_registration_enable_ = false;
     }
 }
 
 void PercipioCameraNode::setupDevices() {
-    device_ptr->depth_speckle_filter_init(depth_speckle_filter_enable, max_speckle_size, max_speckle_diff, max_physical_size);
-    device_ptr->dpeth_time_domain_filter_init(depth_time_domain_filter_enable, depth_time_domain_num);
+    device_ptr_->depth_speckle_filter_init(depth_speckle_filter_enable_, max_speckle_size_, max_speckle_diff_, max_physical_size_);
+    device_ptr_->depth_time_domain_filter_init(depth_time_domain_filter_enable_, depth_time_domain_num_);
 
-    device_ptr->ir_enhance_mode_init(ir_enhance_mode, ir_enhancement_coefficient_);
-    device_ptr->ir_undistortion_enable(ir_undistortion);
+    device_ptr_->ir_enhance_mode_init(ir_enhance_mode_, ir_enhancement_coefficient_);
+    device_ptr_->ir_undistortion_enable(ir_undistortion_);
 
-    if(!device_ptr->hasColor()) {
+    if(!device_ptr_->hasColor()) {
         RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Color image data stream is not supported!");
-        stream_enable[COLOR_STREAM] = false;
+        stream_enable_[COLOR_STREAM] = false;
     }
 
-    if(!device_ptr->hasDepth()) {
+    if(!device_ptr_->hasDepth()) {
         RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Depth image data stream is not supported!");
-        stream_enable[DEPTH_STREAM] = false;
+        stream_enable_[DEPTH_STREAM] = false;
     }
 
-    if(!device_ptr->hasLeftIR()) {
+    if(!device_ptr_->hasLeftIR()) {
         RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Left-IR image data stream is not supported!");
-        stream_enable[LEFT_IR_STREAM] = false;
+        stream_enable_[LEFT_IR_STREAM] = false;
     }
 
-    if(!device_ptr->hasRightIR()) {
+    if(!device_ptr_->hasRightIR()) {
         RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Right-IR image data stream is not supported!");
-        stream_enable[RIGHT_IR_STREAM] = false;
+        stream_enable_[RIGHT_IR_STREAM] = false;
     }
 
-    device_ptr->enable_offline_reconnect(m_offline_auto_reconnection);
+    device_ptr_->enable_offline_reconnect(offline_auto_reconnection_);
 
-    device_ptr->frame_rate_init(device_frame_rate_control, device_frame_rate);
+    device_ptr_->frame_rate_init(device_frame_rate_control_, device_frame_rate_);
 
-    if(m_laser_power >= 0)
-        device_ptr->set_laser_power(m_laser_power);
+    if(laser_power_ >= 0)
+        device_ptr_->set_laser_power(laser_power_);
 
     for (auto index : PERCIPIO_IMAGE_STREAMS) {
-        if(stream_enable[index]) {
-            device_ptr->stream_open(index, stream_resolution[index], stream_image_mode[index]);   
+        if(stream_enable_[index]) {
+            device_ptr_->stream_open(index, stream_resolution_[index], stream_image_mode_[index]);   
         } else {
             if(index == DEPTH_STREAM) {
-                if(point_cloud_enable || color_point_cloud_enable) {
-                    device_ptr->stream_open(index, stream_resolution[index], stream_image_mode[index]);
+                if(point_cloud_enable_ || color_point_cloud_enable_) {
+                    device_ptr_->stream_open(index, stream_resolution_[index], stream_image_mode_[index]);
                 } else {
-                    device_ptr->stream_close(index);
+                    device_ptr_->stream_close(index);
                 }
             } else {
-                device_ptr->stream_close(index);
+                device_ptr_->stream_close(index);
             }
         }
     }
 
-    if (!stream_enable[COLOR_STREAM]) {
-        color_point_cloud_enable = false;
-        depth_registration_enable = false;
+    if (!stream_enable_[COLOR_STREAM]) {
+        color_point_cloud_enable_ = false;
+        depth_registration_enable_ = false;
     }
 
-    if(color_point_cloud_enable) {
-        point_cloud_enable = false;
+    if(color_point_cloud_enable_) {
+        point_cloud_enable_ = false;
     }
 
-    device_ptr->topics_depth_stream_enable(stream_enable[DEPTH_STREAM]);
-    device_ptr->topics_point_cloud_enable(point_cloud_enable);
-    device_ptr->topics_color_point_cloud_enable(color_point_cloud_enable);
-    device_ptr->topics_depth_registration_enable(depth_registration_enable);
+    device_ptr_->topics_depth_stream_enable(stream_enable_[DEPTH_STREAM]);
+    device_ptr_->topics_point_cloud_enable(point_cloud_enable_);
+    device_ptr_->topics_color_point_cloud_enable(color_point_cloud_enable_);
+    device_ptr_->topics_depth_registration_enable(depth_registration_enable_);
 
-    if(stream_enable[DEPTH_STREAM])
-        f_depth_scale = device_ptr->getDepthValueScale();
+    if(stream_enable_[DEPTH_STREAM])
+        depth_scale_ = device_ptr_->getDepthValueScale();
 
     startStreams();
 }
 
 void PercipioCameraNode::startStreams() {
-    device_ptr->setFrameCallback(boost::bind(&PercipioCameraNode::onNewFrame, this, _1));
-    device_ptr->stream_start();
+    device_ptr_->setFrameCallback(boost::bind(&PercipioCameraNode::onNewFrame, this, _1));
+    device_ptr_->stream_start();
 }
 
 void PercipioCameraNode::topic_softtrigger_callback(const std_msgs::msg::String::SharedPtr msg) const
 {
     RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "    got soft trigger event: '%s'", msg->data.c_str());
-    device_ptr->send_softtrigger();
+    device_ptr_->send_softtrigger();
 }
 
 void PercipioCameraNode::topic_dynamic_config_callback(const std_msgs::msg::String::SharedPtr msg) const
 {
     RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "    got dynamic config event: '%s'", msg->data.c_str());
-    device_ptr->setDeviceConfig(msg->data);
+    device_ptr_->setDeviceConfig(msg->data);
 }
 
 void PercipioCameraNode::topic_device_reset_callback(const std_msgs::msg::Empty::SharedPtr) const
 {
     RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "    got device reset event.");
-    device_ptr->reset();
+    device_ptr_->reset();
 }
 
 void PercipioCameraNode::setupSubscribers() {
@@ -289,29 +284,29 @@ void PercipioCameraNode::setupSubscribers() {
 }
 
 void PercipioCameraNode::setupPublishers() {  
-    auto point_cloud_qos_profile = getRMWQosProfileFromString(point_cloud_qos);
+    auto point_cloud_qos_profile = getRMWQosProfileFromString(point_cloud_qos_);
 
-    if (color_point_cloud_enable) {
+    if (color_point_cloud_enable_) {
         color_point_cloud_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>(
             "depth_registered/points",
             rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(point_cloud_qos_profile),
             point_cloud_qos_profile));
     }
 
-    if (point_cloud_enable) {
+    if (point_cloud_enable_) {
         point_cloud_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>(
             "depth/points", rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(point_cloud_qos_profile),
             point_cloud_qos_profile));
     }
 
     for (const auto &stream_index : PERCIPIO_IMAGE_STREAMS) {
-        if (!stream_enable[stream_index]) {
+        if (!stream_enable_[stream_index]) {
             continue;
         }
 
-        std::string name = stream_name[stream_index];
+        std::string name = stream_name_[stream_index];
         std::string topic = name + "/image_raw";
-        auto image_qos = stream_qos[stream_index];
+        auto image_qos = stream_qos_[stream_index];
         auto image_qos_profile = getRMWQosProfileFromString(image_qos);
         image_publishers_[stream_index] = image_transport::create_publisher(node_, topic, image_qos_profile);
 
@@ -347,21 +342,21 @@ void PercipioCameraNode::SendConnectMsg(const char* sn) {
     device_event_publisher_->publish(std::move(msg));
 }
 
-void PercipioCameraNode::SendTimetMsg(const char* sn) {
+void PercipioCameraNode::SendTimeoutMsg(const char* sn) {
     auto msg = std_msgs::msg::String();
     msg.data = " DeviceTimeout<" + std::string(sn) + ">";
     RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Publishing: '%s'", msg.data.c_str());
     device_event_publisher_->publish(std::move(msg));
 }
 
-#define SUBSCRIVER_CHECK(has)  do {   \
+#define SUBSCRIBER_CHECK(has)  do {   \
     if(!has) return; \
 } while(0)
 
 void PercipioCameraNode::publishColorFrame(percipio_camera::VideoStream& stream)
 {
     bool has_subscriber = image_publishers_[COLOR_STREAM].getNumSubscribers() > 0;
-    SUBSCRIVER_CHECK(has_subscriber);
+    SUBSCRIBER_CHECK(has_subscriber);
 
     const TYImage& color = stream.getColorImage();
     if(color.empty()) {
@@ -369,111 +364,69 @@ void PercipioCameraNode::publishColorFrame(percipio_camera::VideoStream& stream)
     }
 
     auto image_info = stream.getColorInfo();
-    image_info.header.stamp = HWTimeUsToROSTime(stream.getColorStramTimestamp());
-    image_info.header.frame_id = optical_frame_id[COLOR_STREAM];
+    image_info.header.stamp = HWTimeUsToROSTime(stream.getColorStreamTimestamp());
+    image_info.header.frame_id = optical_frame_id_[COLOR_STREAM];
     image_info.width = color.width();
     image_info.height = color.height();
     camera_info_publishers_[COLOR_STREAM]->publish(image_info);
 
     cv::Mat cv_color = cv::Mat(cv::Size(color.width(), color.height()), CV_8UC3, (void*)color.data());
     auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), sensor_msgs::image_encodings::BGR8, cv_color).toImageMsg();
-    image_msg->header.stamp = HWTimeUsToROSTime(stream.getColorStramTimestamp());
+    image_msg->header.stamp = HWTimeUsToROSTime(stream.getColorStreamTimestamp());
     image_msg->is_bigendian = false;
     image_msg->step = 3 * color.width();
-    image_msg->header.frame_id = optical_frame_id[COLOR_STREAM];
+    image_msg->header.frame_id = optical_frame_id_[COLOR_STREAM];
     image_publishers_[COLOR_STREAM].publish(std::move(image_msg));
 }
 
-void PercipioCameraNode::publishLeftIRFrame(percipio_camera::VideoStream& stream)
+void PercipioCameraNode::publishIRFrame(percipio_camera::VideoStream& stream, const percipio_stream_index_pair& ir_stream)
 {
-    bool has_subscriber = image_publishers_[LEFT_IR_STREAM].getNumSubscribers() > 0;
-    SUBSCRIVER_CHECK(has_subscriber);
+    bool has_subscriber = image_publishers_[ir_stream].getNumSubscribers() > 0;
+    SUBSCRIBER_CHECK(has_subscriber);
 
-    const TYImage& IR = stream.getLeftIRImage();
-    if(IR.empty()) {
+    const TYImage& ir = (ir_stream == LEFT_IR_STREAM) ? stream.getLeftIRImage() : stream.getRightIRImage();
+    if(ir.empty()) {
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "ir image is empty.");
         return;
     }
 
-    TYPixFmt fmt = IR.format();
-    const char*   sz_encoding_type = nullptr;
+    TYPixFmt fmt = ir.format();
+    const char* encoding_type = nullptr;
     cv::Mat cv_ir;
+    int bytes_per_pixel = 0;
     if(fmt == TYPixelFormatMono8) {
-        sz_encoding_type = sensor_msgs::image_encodings::MONO8;
-        cv_ir = cv::Mat(cv::Size(IR.width(), IR.height()), CV_8U, (void*)IR.data());
+        encoding_type = sensor_msgs::image_encodings::MONO8;
+        cv_ir = cv::Mat(cv::Size(ir.width(), ir.height()), CV_8U, (void*)ir.data());
+        bytes_per_pixel = 1;
     } else if(fmt == TYPixelFormatMono16) {
-        sz_encoding_type = sensor_msgs::image_encodings::MONO16;
-        cv_ir = cv::Mat(cv::Size(IR.width(), IR.height()), CV_16U, (void*)IR.data());
+        encoding_type = sensor_msgs::image_encodings::MONO16;
+        cv_ir = cv::Mat(cv::Size(ir.width(), ir.height()), CV_16U, (void*)ir.data());
+        bytes_per_pixel = 2;
     } else {
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Invalid ir image format.");
         return;
     }
 
-    auto image_info = stream.getLeftIRInfo();
-    image_info.header.stamp = HWTimeUsToROSTime(stream.getLeftIRStramTimestamp());
-    image_info.header.frame_id = optical_frame_id[LEFT_IR_STREAM];
-    image_info.width = IR.width();
-    image_info.height = IR.height();
-    camera_info_publishers_[LEFT_IR_STREAM]->publish(image_info);
+    auto image_info = (ir_stream == LEFT_IR_STREAM) ? stream.getLeftIRInfo() : stream.getRightIRInfo();
+    uint64_t timestamp = (ir_stream == LEFT_IR_STREAM) ? stream.getLeftIRStreamTimestamp() : stream.getRightIRStreamTimestamp();
+    image_info.header.stamp = HWTimeUsToROSTime(timestamp);
+    image_info.header.frame_id = optical_frame_id_[ir_stream];
+    image_info.width = ir.width();
+    image_info.height = ir.height();
+    camera_info_publishers_[ir_stream]->publish(image_info);
 
-    auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), sz_encoding_type, cv_ir).toImageMsg();
-    image_msg->header.stamp = HWTimeUsToROSTime(stream.getLeftIRStramTimestamp());
+    auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), encoding_type, cv_ir).toImageMsg();
+    image_msg->header.stamp = HWTimeUsToROSTime(timestamp);
     image_msg->is_bigendian = false;
-    if(fmt == TYPixelFormatMono8)
-        image_msg->step = IR.width();
-    else
-        image_msg->step = 2 * IR.width();
-    image_msg->header.frame_id = optical_frame_id[LEFT_IR_STREAM];
-    image_publishers_[LEFT_IR_STREAM].publish(std::move(image_msg));
-}
-
-void PercipioCameraNode::publishRightIRFrame(percipio_camera::VideoStream& stream)
-{
-    bool has_subscriber = image_publishers_[RIGHT_IR_STREAM].getNumSubscribers() > 0;
-    SUBSCRIVER_CHECK(has_subscriber);
-
-    const TYImage& IR = stream.getRightIRImage();
-    if(IR.empty()) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "ir image is empty.");
-        return;
-    }
-
-    TYPixFmt fmt = IR.format();
-    const char*   sz_encoding_type = nullptr;
-    cv::Mat cv_ir;
-    if(fmt == TYPixelFormatMono8) {
-        sz_encoding_type = sensor_msgs::image_encodings::MONO8;
-        cv_ir = cv::Mat(cv::Size(IR.width(), IR.height()), CV_8U, (void*)IR.data());
-    } else if(fmt == TYPixelFormatMono16) {
-        sz_encoding_type = sensor_msgs::image_encodings::MONO16;
-        cv_ir = cv::Mat(cv::Size(IR.width(), IR.height()), CV_16U, (void*)IR.data());
-    } else {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Invalid ir image format.");
-        return;
-    }
-
-    auto image_info = stream.getRightIRInfo();
-    image_info.header.stamp = HWTimeUsToROSTime(stream.getRightIRStramTimestamp());
-    image_info.header.frame_id = optical_frame_id[RIGHT_IR_STREAM];
-    image_info.width = IR.width();
-    image_info.height = IR.height();
-    camera_info_publishers_[RIGHT_IR_STREAM]->publish(image_info);
-
-    auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), sz_encoding_type, cv_ir).toImageMsg();
-    image_msg->header.stamp = HWTimeUsToROSTime(stream.getRightIRStramTimestamp());
-    image_msg->is_bigendian = false;
-    if(fmt == TYPixelFormatMono8)
-        image_msg->step = IR.width();
-    else
-        image_msg->step = 2 * IR.width();
-    image_msg->header.frame_id = optical_frame_id[RIGHT_IR_STREAM];
-    image_publishers_[RIGHT_IR_STREAM].publish(std::move(image_msg));
+    image_msg->step = bytes_per_pixel * ir.width();
+    image_msg->header.frame_id = optical_frame_id_[ir_stream];
+    image_publishers_[ir_stream].publish(std::move(image_msg));
 }
 
 void PercipioCameraNode::publishDepthFrame(percipio_camera::VideoStream& stream)
 {
     bool has_subscriber = image_publishers_[DEPTH_STREAM].getNumSubscribers() > 0;
-    SUBSCRIVER_CHECK(has_subscriber);
+    SUBSCRIBER_CHECK(has_subscriber);
     
     const TYImage& image = stream.getDepthImage();
     if(image.empty()) {
@@ -482,8 +435,8 @@ void PercipioCameraNode::publishDepthFrame(percipio_camera::VideoStream& stream)
     }
 
     auto image_info = stream.getDepthInfo();
-    image_info.header.stamp = HWTimeUsToROSTime(stream.getDepthStramTimestamp());
-    image_info.header.frame_id = optical_frame_id[DEPTH_STREAM];
+    image_info.header.stamp = HWTimeUsToROSTime(stream.getDepthStreamTimestamp());
+    image_info.header.frame_id = optical_frame_id_[DEPTH_STREAM];
     image_info.width = image.width();
     image_info.height = image.height();
     camera_info_publishers_[DEPTH_STREAM]->publish(image_info);
@@ -491,18 +444,18 @@ void PercipioCameraNode::publishDepthFrame(percipio_camera::VideoStream& stream)
     if(image.format() == TYPixelFormatCoord3D_C16) {
         cv::Mat cv_image = cv::Mat(cv::Size(image.width(), image.height()), CV_16U, (void*)image.data());
         auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), sensor_msgs::image_encodings::TYPE_16UC1, cv_image).toImageMsg();
-        image_msg->header.stamp = HWTimeUsToROSTime(stream.getDepthStramTimestamp());
+        image_msg->header.stamp = HWTimeUsToROSTime(stream.getDepthStreamTimestamp());
         image_msg->is_bigendian = false;
         image_msg->step = 2 * image.width();
-        image_msg->header.frame_id = optical_frame_id[DEPTH_STREAM];
+        image_msg->header.frame_id = optical_frame_id_[DEPTH_STREAM];
         image_publishers_[DEPTH_STREAM].publish(std::move(image_msg));
     } else if(image.format() == TYPixelFormatCoord3D_ABC16) {
         cv::Mat cv_image = cv::Mat(cv::Size(image.width(), image.height()), CV_16SC3, (void*)image.data());
         auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), sensor_msgs::image_encodings::TYPE_16SC3, cv_image).toImageMsg();
-        image_msg->header.stamp = HWTimeUsToROSTime(stream.getDepthStramTimestamp());
+        image_msg->header.stamp = HWTimeUsToROSTime(stream.getDepthStreamTimestamp());
         image_msg->is_bigendian = false;
         image_msg->step = 6 * image.width();
-        image_msg->header.frame_id = optical_frame_id[DEPTH_STREAM];
+        image_msg->header.frame_id = optical_frame_id_[DEPTH_STREAM];
         image_publishers_[DEPTH_STREAM].publish(std::move(image_msg));
     }
 }
@@ -510,7 +463,7 @@ void PercipioCameraNode::publishDepthFrame(percipio_camera::VideoStream& stream)
 void PercipioCameraNode::publishColorPointCloud(percipio_camera::VideoStream& stream)
 {
     bool has_subscriber = color_point_cloud_pub_->get_subscription_count() > 0;
-    SUBSCRIVER_CHECK(has_subscriber);
+    SUBSCRIBER_CHECK(has_subscriber);
     
     const TYImage& p3d = stream.getPointCloud();
     const TYImage& color = stream.getColorImage();
@@ -533,6 +486,8 @@ void PercipioCameraNode::publishColorPointCloud(percipio_camera::VideoStream& st
     point_cloud_msg->row_step = point_cloud_msg->width * point_cloud_msg->point_step;
     point_cloud_msg->data.resize(point_cloud_msg->height * point_cloud_msg->row_step);
     
+    const int width = p3d.width();
+    const int height = p3d.height();
     size_t valid_count = 0;
     sensor_msgs::PointCloud2Iterator<float> iter_x(*point_cloud_msg, "x");
     sensor_msgs::PointCloud2Iterator<float> iter_y(*point_cloud_msg, "y");
@@ -540,21 +495,17 @@ void PercipioCameraNode::publishColorPointCloud(percipio_camera::VideoStream& st
     sensor_msgs::PointCloud2Iterator<uint8_t> iter_r(*point_cloud_msg, "r");
     sensor_msgs::PointCloud2Iterator<uint8_t> iter_g(*point_cloud_msg, "g");
     sensor_msgs::PointCloud2Iterator<uint8_t> iter_b(*point_cloud_msg, "b");
-    for (int y = 0; y < p3d.height(); y++) {
-        for (int x = 0; x < p3d.width(); x++) {
-            bool valid_point = true;
-            float depth = p3d_data[3 * y * p3d.width() + 3 * x + 2];
-            if (std::isnan(depth)) {
-                valid_point = false; 
-            }
-            
-            if (valid_point) {
-                *iter_x = p3d_data[3 * y * p3d.width() + 3 * x + 0] / 1000.0;
-                *iter_y = p3d_data[3 * y * p3d.width() + 3 * x + 1] / 1000.0;
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int idx = 3 * (y * width + x);
+            float depth = p3d_data[idx + 2];
+            if (!std::isnan(depth)) {
+                *iter_x = p3d_data[idx + 0] / 1000.0;
+                *iter_y = p3d_data[idx + 1] / 1000.0;
                 *iter_z = depth / 1000.0;
-                *iter_b = color_data[(3 * y * p3d.width() + 3 * x)  + 0];
-                *iter_g = color_data[(3 * y * p3d.width() + 3 * x)  + 1];
-                *iter_r = color_data[(3 * y * p3d.width() + 3 * x)  + 2];
+                *iter_b = color_data[idx + 0];
+                *iter_g = color_data[idx + 1];
+                *iter_r = color_data[idx + 2];
                 ++iter_x;
                 ++iter_y;
                 ++iter_z;
@@ -562,7 +513,6 @@ void PercipioCameraNode::publishColorPointCloud(percipio_camera::VideoStream& st
                 ++iter_g;
                 ++iter_b;
                 ++valid_count;
-            } else {
             }
         }
     }
@@ -571,8 +521,8 @@ void PercipioCameraNode::publishColorPointCloud(percipio_camera::VideoStream& st
     point_cloud_msg->height = 1;
     modifier.resize(valid_count);
 
-    point_cloud_msg->header.stamp = HWTimeUsToROSTime(stream.getPointCloudStramTimestamp());
-    point_cloud_msg->header.frame_id = optical_frame_id[DEPTH_STREAM];
+    point_cloud_msg->header.stamp = HWTimeUsToROSTime(stream.getPointCloudStreamTimestamp());
+    point_cloud_msg->header.frame_id = optical_frame_id_[DEPTH_STREAM];
     color_point_cloud_pub_->publish(std::move(point_cloud_msg));
 }
 
@@ -580,7 +530,7 @@ void PercipioCameraNode::publishColorPointCloud(percipio_camera::VideoStream& st
 void PercipioCameraNode::publishPointCloud(percipio_camera::VideoStream& stream)
 {
     bool has_subscriber = point_cloud_pub_->get_subscription_count() > 0;
-    SUBSCRIVER_CHECK(has_subscriber);
+    SUBSCRIBER_CHECK(has_subscriber);
 
     const TYImage& p3d = stream.getPointCloud();
     if(p3d.empty()) {
@@ -592,11 +542,11 @@ void PercipioCameraNode::publishPointCloud(percipio_camera::VideoStream& stream)
     sensor_msgs::PointCloud2Modifier modifier(*point_cloud_msg);
     modifier.setPointCloud2FieldsByString(1, "xyz");
 
-    auto m_width = p3d.width();
-    auto m_height = p3d.height();
-    modifier.resize(m_width * m_height);
-    point_cloud_msg->width = m_width;
-    point_cloud_msg->height = m_height;
+    const int width = p3d.width();
+    const int height = p3d.height();
+    modifier.resize(width * height);
+    point_cloud_msg->width = width;
+    point_cloud_msg->height = height;
     point_cloud_msg->row_step = point_cloud_msg->width * point_cloud_msg->point_step;
     point_cloud_msg->data.resize(point_cloud_msg->height * point_cloud_msg->row_step);
 
@@ -604,17 +554,13 @@ void PercipioCameraNode::publishPointCloud(percipio_camera::VideoStream& stream)
     sensor_msgs::PointCloud2Iterator<float> iter_x(*point_cloud_msg, "x");
     sensor_msgs::PointCloud2Iterator<float> iter_y(*point_cloud_msg, "y");
     sensor_msgs::PointCloud2Iterator<float> iter_z(*point_cloud_msg, "z");
-    for (int y = 0; y < m_height; y++) {
-        for (int x = 0; x < m_width; x++) {
-            bool valid_point = true;
-            float depth = p3d_data[3 * y * m_width + 3 * x + 2];
-            if (std::isnan(depth)) {
-                valid_point = false; 
-            }
-
-            if (valid_point) {
-                *iter_x = p3d_data[3 * y * point_cloud_msg->width + 3 * x + 0] / 1000.0;
-                *iter_y = p3d_data[3 * y * point_cloud_msg->width + 3 * x + 1] / 1000.0;
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int idx = 3 * (y * width + x);
+            float depth = p3d_data[idx + 2];
+            if (!std::isnan(depth)) {
+                *iter_x = p3d_data[idx + 0] / 1000.0;
+                *iter_y = p3d_data[idx + 1] / 1000.0;
                 *iter_z = depth / 1000.0;
 
                 ++iter_x;
@@ -638,16 +584,16 @@ void PercipioCameraNode::publishPointCloud(percipio_camera::VideoStream& stream)
 
     point_cloud_msg->is_dense = true;
 #ifdef PUBLISH_INVALID_POINT_CLOUD_DATA
-    point_cloud_msg->width = m_width;
-    point_cloud_msg->height = m_height;
+    point_cloud_msg->width = width;
+    point_cloud_msg->height = height;
 #else
     point_cloud_msg->width = valid_count;
     point_cloud_msg->height = 1;
     modifier.resize(valid_count);
 #endif
     
-    point_cloud_msg->header.stamp = HWTimeUsToROSTime(stream.getPointCloudStramTimestamp());
-    point_cloud_msg->header.frame_id = optical_frame_id[DEPTH_STREAM];
+    point_cloud_msg->header.stamp = HWTimeUsToROSTime(stream.getPointCloudStreamTimestamp());
+    point_cloud_msg->header.frame_id = optical_frame_id_[DEPTH_STREAM];
     point_cloud_pub_->publish(std::move(point_cloud_msg));
 }
 
@@ -674,16 +620,16 @@ void PercipioCameraNode::publishStaticTransforms() {
     quaternion_optical.setRPY(-M_PI / 2, 0.0, -M_PI / 2);
     tf2::Vector3 zero_trans(0.0, 0.0, 0.0);
     for (const auto &stream_index : PERCIPIO_IMAGE_STREAMS) {
-        if(stream_enable[stream_index]) {
+        if(stream_enable_[stream_index]) {
             tf2::Vector3 trans(0.0, 0.0, 0.0);
             tf2::Quaternion Q = tf2::Quaternion(0.0, 0.0, 0.0, 1.0);
 
             auto timestamp = node_->now();
-            std::string frame_id_ =  frame_id[stream_index];
-            std::string optical_frame_id_ =  optical_frame_id[stream_index];
+            const std::string& frame_id = frame_id_[stream_index];
+            const std::string& optical_frame_id = optical_frame_id_[stream_index];
 
-            publishStaticTF(timestamp, trans,      Q,                  camera_link_frame_id_,   frame_id_);
-            publishStaticTF(timestamp, zero_trans, quaternion_optical, frame_id_,               optical_frame_id_);
+            publishStaticTF(timestamp, trans,      Q,                  camera_link_frame_id_,   frame_id);
+            publishStaticTF(timestamp, zero_trans, quaternion_optical, frame_id,                optical_frame_id);
         }
     }
 
@@ -698,27 +644,27 @@ void PercipioCameraNode::onNewFrame(percipio_camera::VideoStream& stream)
       tf_published_ = true;
     }
 
-    if(stream_enable[DEPTH_STREAM]) {
+    if(stream_enable_[DEPTH_STREAM]) {
         publishDepthFrame(stream);
     }
 
-    if(stream_enable[COLOR_STREAM]) {
+    if(stream_enable_[COLOR_STREAM]) {
         publishColorFrame(stream);
     }
 
-    if(stream_enable[LEFT_IR_STREAM]) {
-        publishLeftIRFrame(stream);
+    if(stream_enable_[LEFT_IR_STREAM]) {
+        publishIRFrame(stream, LEFT_IR_STREAM);
     }
 
-    if(stream_enable[RIGHT_IR_STREAM]) {
-        publishRightIRFrame(stream);
+    if(stream_enable_[RIGHT_IR_STREAM]) {
+        publishIRFrame(stream, RIGHT_IR_STREAM);
     }
 
-    if(color_point_cloud_enable) {
+    if(color_point_cloud_enable_) {
         publishColorPointCloud(stream);
     }
     
-    if(point_cloud_enable) {
+    if(point_cloud_enable_) {
         publishPointCloud(stream);
     } 
 }

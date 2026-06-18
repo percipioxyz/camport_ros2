@@ -42,6 +42,8 @@ private:
     TY_STATUS source_init(int64_t source);
     TY_STATUS fix_device_frame_rate(float& rate);
     TY_STATUS fix_device_frame_rate_in_soft_trigger_mode(const float rate);
+    TY_STATUS getIRRotation(int64_t source, TY_CAMERA_ROTATION& rotation);
+    TY_STATUS getIRRectifiedIntr(int64_t source, TY_CAMERA_INTRINSIC& rectified_intr);
 };
 
 }

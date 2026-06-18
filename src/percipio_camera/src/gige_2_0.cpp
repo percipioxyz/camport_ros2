@@ -10,7 +10,7 @@ namespace percipio_camera {
 
 #define MAX_STORAGE_SIZE    (10*1024*1024)
 
-static std::map<std::string, TY_FEATURE_ID> m_gige_2_0_feature_map = {
+static std::map<std::string, TY_FEATURE_ID> gige_2_0_feature_map = {
     {"TriggerDelay",                              TY_INT_TRIGGER_DELAY_US},
 
     {"ExposureAuto",                              TY_BOOL_AUTO_EXPOSURE},
@@ -419,8 +419,8 @@ bool GigE_2_0::parameter_init(const std::string& source, const std::string& feat
         return false;
     }
 
-    auto feature = m_gige_2_0_feature_map.find(feat);
-    if (feature == m_gige_2_0_feature_map.end()) {
+    auto feature = gige_2_0_feature_map.find(feat);
+    if (feature == gige_2_0_feature_map.end()) {
         RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_GIGE_2_0), "Unsupported feature name: " << feat);
         return false;
     }

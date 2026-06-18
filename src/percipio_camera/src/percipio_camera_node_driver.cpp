@@ -86,38 +86,38 @@ void PercipioCameraNodeDriver::onCameraEventCallback(PercipioDevice* Handle, TY_
         percipio_camera_node_->SendConnectMsg(Handle->serialNumber().c_str());
     } else if(event_info->eventId == TY_EVENT_DEVICE_TIMEOUT) {
         RCLCPP_INFO_STREAM(logger_,  "Device Event Callback: Device Timeout, SN = " << Handle->serialNumber());
-        percipio_camera_node_->SendTimetMsg(Handle->serialNumber().c_str());
+        percipio_camera_node_->SendTimeoutMsg(Handle->serialNumber().c_str());
     }
 }
 
 bool PercipioCameraNodeDriver::initializeDevice(const TY_DEVICE_BASE_INFO& device) {
-    percipio_device = std::make_shared<PercipioDevice>(device.iface.id, device.id);
-    if(!percipio_device->isAlive()) 
+    percipio_device_ = std::make_shared<PercipioDevice>(device.iface.id, device.id);
+    if(!percipio_device_->isAlive()) 
         return false;
 
-    device_serial_number_ = percipio_device->serialNumber();
-    device_model_name_ = percipio_device->modelName();
-    device_buildhash_ = percipio_device->buildHash();
-    device_cfg_version_ = percipio_device->configVersion();
+    device_serial_number_ = percipio_device_->serialNumber();
+    device_model_name_ = percipio_device_->modelName();
+    device_buildhash_ = percipio_device_->buildHash();
+    device_cfg_version_ = percipio_device_->configVersion();
     RCLCPP_INFO_STREAM(logger_, "Serial number:  " << device_serial_number_);
     RCLCPP_INFO_STREAM(logger_, "Model name:     " << device_model_name_);
     RCLCPP_INFO_STREAM(logger_, "Build hash:     " << device_buildhash_);
     RCLCPP_INFO_STREAM(logger_, "Config version: " << device_cfg_version_);
 
     if(device_workmode_ == "trigger_soft")
-        percipio_device->set_workmode(SOFTTRIGGER);
+        percipio_device_->set_workmode(SOFTTRIGGER);
     else if(device_workmode_ == "trigger_hard")
-        percipio_device->set_workmode(HARDTRIGGER);
+        percipio_device_->set_workmode(HARDTRIGGER);
     else
-        percipio_device->set_workmode(CONTINUOUS);
+        percipio_device_->set_workmode(CONTINUOUS);
     
-    percipio_device->registerCameraEventCallback(boost::bind(&PercipioCameraNodeDriver::onCameraEventCallback, this, _1, _2));
+    percipio_device_->registerCameraEventCallback(boost::bind(&PercipioCameraNodeDriver::onCameraEventCallback, this, _1, _2));
 
     if(device_config_xml_.length()) {
-        percipio_device->setDeviceConfig(device_config_xml_);
+        percipio_device_->setDeviceConfig(device_config_xml_);
     }
     
-    percipio_camera_node_ = std::make_unique<PercipioCameraNode>(this, percipio_device);
+    percipio_camera_node_ = std::make_unique<PercipioCameraNode>(this, percipio_device_);
     return true;
 }
 

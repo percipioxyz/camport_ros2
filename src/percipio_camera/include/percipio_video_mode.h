@@ -83,23 +83,23 @@ class VideoStream {
                 
         //////////////////////////////////////////////
         const TYImage& getDepthImage()                       {   return _depth;              }
-        const uint64_t& getDepthStramTimestamp()             {   return _depth_timestamp;    }
+        const uint64_t& getDepthStreamTimestamp()            {   return _depth_timestamp;    }
         const sensor_msgs::msg::CameraInfo& getDepthInfo()   {   return _depth_cam_info;     }
         ////////////////////////////////////////////////////
         const TYImage& getColorImage()                       {   return _color;              }
-        const uint64_t& getColorStramTimestamp()             {   return _color_timestamp;    }
+        const uint64_t& getColorStreamTimestamp()            {   return _color_timestamp;    }
         const sensor_msgs::msg::CameraInfo& getColorInfo()   {   return _color_cam_info;     }
         //////////////////////////////////////////////
         const TYImage& getLeftIRImage()                      {   return _left_ir;            }
-        const uint64_t& getLeftIRStramTimestamp()            {   return _lir_timestamp;      }
+        const uint64_t& getLeftIRStreamTimestamp()           {   return _lir_timestamp;      }
         const sensor_msgs::msg::CameraInfo& getLeftIRInfo()  {   return _lir_cam_info;       }
         //////////////////////////////////////////////=
         const TYImage& getRightIRImage()                     {   return _right_ir;           }
-        const uint64_t& getRightIRStramTimestamp()           {   return _rir_timestamp;      }
+        const uint64_t& getRightIRStreamTimestamp()          {   return _rir_timestamp;      }
         const sensor_msgs::msg::CameraInfo& getRightIRInfo() {   return _rir_cam_info;       }
         //////////////////////////////////////////////
         const TYImage& getPointCloud()                       {   return _p3d;                }
-        const uint64_t& getPointCloudStramTimestamp()        {   return _p3d_timestamp;      }
+        const uint64_t& getPointCloudStreamTimestamp()       {   return _p3d_timestamp;      }
 
     private:
         uint64_t _lir_timestamp;

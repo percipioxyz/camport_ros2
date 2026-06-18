@@ -49,10 +49,10 @@ class PercipioCameraNode {
         
         void SendConnectMsg(const char* sn);
         
-        void SendTimetMsg(const char* sn);
+        void SendTimeoutMsg(const char* sn);
 
         rclcpp::Node* Node() { return node_; }
-        std::shared_ptr<PercipioDevice>  Device() const { return device_ptr; }
+        std::shared_ptr<PercipioDevice>  Device() const { return device_ptr_; }
         
     private:
         rclcpp::Node* node_ = nullptr;
@@ -60,17 +60,17 @@ class PercipioCameraNode {
         std::string camera_link_frame_id_;
 
         bool tf_published_ = false;
-        std::shared_ptr<tf2_ros::TransformBroadcaster> _tf = nullptr;
+        std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_ = nullptr;
 
-        const std::shared_ptr<PercipioDevice>& device_ptr;
+        const std::shared_ptr<PercipioDevice>& device_ptr_;
 
-        std::map<percipio_stream_index_pair, bool>          stream_enable;
-        std::map<percipio_stream_index_pair, std::string>   stream_name;
-        std::map<percipio_stream_index_pair, std::string>   stream_resolution;
-        std::map<percipio_stream_index_pair, std::string>   stream_image_mode;
+        std::map<percipio_stream_index_pair, bool>          stream_enable_;
+        std::map<percipio_stream_index_pair, std::string>   stream_name_;
+        std::map<percipio_stream_index_pair, std::string>   stream_resolution_;
+        std::map<percipio_stream_index_pair, std::string>   stream_image_mode_;
 
-        std::map<percipio_stream_index_pair, std::string>   frame_id;
-        std::map<percipio_stream_index_pair, std::string>   optical_frame_id;
+        std::map<percipio_stream_index_pair, std::string>   frame_id_;
+        std::map<percipio_stream_index_pair, std::string>   optical_frame_id_;
         std::map<percipio_stream_index_pair, image_transport::Publisher> image_publishers_;
         std::map<percipio_stream_index_pair, rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr> camera_info_publishers_;
 
@@ -91,39 +91,39 @@ class PercipioCameraNode {
         rclcpp::TimerBase::SharedPtr timer_ = nullptr;
         void broadcast_timer_callback();
 
-        std::map<percipio_stream_index_pair, std::string>   stream_qos;
+        std::map<percipio_stream_index_pair, std::string>   stream_qos_;
         std::map<percipio_stream_index_pair, std::string>   camera_info_qos_;
-        std::string point_cloud_qos;
+        std::string point_cloud_qos_;
 
-        bool m_offline_auto_reconnection = false;
+        bool offline_auto_reconnection_ = false;
 
-        bool device_frame_rate_control = false;
-        float device_frame_rate = 5.0;
+        bool device_frame_rate_control_ = false;
+        float device_frame_rate_ = 5.0;
 
-        bool point_cloud_enable = true;
-        bool color_point_cloud_enable = false;
+        bool point_cloud_enable_ = true;
+        bool color_point_cloud_enable_ = false;
 
-        bool depth_registration_enable = false;
+        bool depth_registration_enable_ = false;
 
-        bool depth_speckle_filter_enable = false;
-        int  max_speckle_size = 150;
-        int  max_speckle_diff = 64;
-        float max_physical_size = 20.0;
+        bool depth_speckle_filter_enable_ = false;
+        int  max_speckle_size_ = 150;
+        int  max_speckle_diff_ = 64;
+        float max_physical_size_ = 20.0;
 
-        bool depth_time_domain_filter_enable = false;
-        int  depth_time_domain_num = 3;
+        bool depth_time_domain_filter_enable_ = false;
+        int  depth_time_domain_num_ = 3;
 
-        ir_enhance_model ir_enhance_mode = IREnhanceOFF;
+        ir_enhance_model ir_enhance_mode_ = IREnhanceOFF;
         int ir_enhancement_coefficient_ = 6;
 
-        bool ir_undistortion = true;
+        bool ir_undistortion_ = true;
 
-        int m_laser_power = -1;
+        int laser_power_ = -1;
 
-        int roi[4];
-        bool b_enable_roi_aec = false;
+        int roi_[4];
+        bool enable_roi_aec_ = false;
 
-        float f_depth_scale = 1.f;
+        float depth_scale_ = 1.f;
 
         std::vector<geometry_msgs::msg::TransformStamped> static_tf_msgs_;
         std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_ = nullptr;
@@ -136,8 +136,7 @@ class PercipioCameraNode {
         void startStreams();
         void onNewFrame(percipio_camera::VideoStream& stream);
         void publishColorFrame(percipio_camera::VideoStream& stream);
-        void publishLeftIRFrame(percipio_camera::VideoStream& stream);
-        void publishRightIRFrame(percipio_camera::VideoStream& stream);
+        void publishIRFrame(percipio_camera::VideoStream& stream, const percipio_stream_index_pair& ir_stream);
         void publishDepthFrame(percipio_camera::VideoStream& stream);
         void publishColorPointCloud(percipio_camera::VideoStream& stream);
         void publishPointCloud(percipio_camera::VideoStream& stream);

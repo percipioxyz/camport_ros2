@@ -21,7 +21,7 @@ class PercipioCameraNodeDriver : public rclcpp::Node {
  private:
     void init();
     std::unique_ptr<PercipioCameraNode> percipio_camera_node_ = nullptr;
-    std::shared_ptr<PercipioDevice> percipio_device = nullptr;
+    std::shared_ptr<PercipioDevice> percipio_device_ = nullptr;
 
  private:
     rclcpp::Logger logger_;

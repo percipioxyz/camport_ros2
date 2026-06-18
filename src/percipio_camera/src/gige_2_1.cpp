@@ -369,24 +369,29 @@ TY_STATUS GigE_2_1::getIRRectificationMode(percipio_rectification_mode& mode)
     return TY_STATUS_OK;
 }
 
-TY_STATUS GigE_2_1::getLeftIRRotation(TY_CAMERA_ROTATION& Rotation)
+TY_STATUS GigE_2_1::getIRRotation(int64_t source, TY_CAMERA_ROTATION& rotation)
 {
-    TY_STATUS ret = source_init(m_Source_LeftIR);
+    TY_STATUS ret = source_init(source);
     if(ret) return ret;
 
-    double rotation[9];
-    ret = TYByteArrayGetValue(hDevice, "Rotation", reinterpret_cast<uint8_t*>(rotation), sizeof(rotation));
+    double rotation_data[9];
+    ret = TYByteArrayGetValue(hDevice, "Rotation", reinterpret_cast<uint8_t*>(rotation_data), sizeof(rotation_data));
     if(TY_STATUS_OK == ret) {
         for(size_t i = 0; i < 9; i++) {
-            Rotation.data[i] = static_cast<float>(rotation[i]);
+            rotation.data[i] = static_cast<float>(rotation_data[i]);
         }
     }
     return ret;
 }
 
-TY_STATUS GigE_2_1::getLeftIRRectifiedIntr(TY_CAMERA_INTRINSIC& Rectified_intr)
+TY_STATUS GigE_2_1::getLeftIRRotation(TY_CAMERA_ROTATION& rotation)
 {
-    TY_STATUS ret = source_init(m_Source_LeftIR);
+    return getIRRotation(m_Source_LeftIR, rotation);
+}
+
+TY_STATUS GigE_2_1::getIRRectifiedIntr(int64_t source, TY_CAMERA_INTRINSIC& rectified_intr)
+{
+    TY_STATUS ret = source_init(source);
     if(ret) return ret;
 
     int64_t binning = 0;
@@ -396,61 +401,34 @@ TY_STATUS GigE_2_1::getLeftIRRectifiedIntr(TY_CAMERA_INTRINSIC& Rectified_intr)
     double intrinsic[9];
     ret = TYByteArrayGetValue(hDevice, "Intrinsic2", reinterpret_cast<uint8_t*>(intrinsic), sizeof(intrinsic));
     if(TY_STATUS_OK == ret) {
-        Rectified_intr.data[0] = static_cast<float>(intrinsic[0] / binning);
-        Rectified_intr.data[1] = 0;
-        Rectified_intr.data[2] = static_cast<float>(intrinsic[2] / binning);
+        rectified_intr.data[0] = static_cast<float>(intrinsic[0] / binning);
+        rectified_intr.data[1] = 0;
+        rectified_intr.data[2] = static_cast<float>(intrinsic[2] / binning);
 
-        Rectified_intr.data[3] = 0;
-        Rectified_intr.data[4] = static_cast<float>(intrinsic[4] / binning);
-        Rectified_intr.data[5] = static_cast<float>(intrinsic[5] / binning);
+        rectified_intr.data[3] = 0;
+        rectified_intr.data[4] = static_cast<float>(intrinsic[4] / binning);
+        rectified_intr.data[5] = static_cast<float>(intrinsic[5] / binning);
 
-        Rectified_intr.data[6] = 0;
-        Rectified_intr.data[7] = 0;
-        Rectified_intr.data[8] = 1;
+        rectified_intr.data[6] = 0;
+        rectified_intr.data[7] = 0;
+        rectified_intr.data[8] = 1;
     }
     return ret;
 }
 
-TY_STATUS GigE_2_1::getRightIRRotation(TY_CAMERA_ROTATION& Rotation)
+TY_STATUS GigE_2_1::getLeftIRRectifiedIntr(TY_CAMERA_INTRINSIC& rectified_intr)
 {
-    TY_STATUS ret = source_init(m_Source_RightIR);
-    if(ret) return ret;
-
-    double rotation[9];
-    ret = TYByteArrayGetValue(hDevice, "Rotation", reinterpret_cast<uint8_t*>(rotation), sizeof(rotation));
-    if(TY_STATUS_OK == ret) {
-        for(size_t i = 0; i < 9; i++) {
-            Rotation.data[i] = static_cast<float>(rotation[i]);
-        }
-    }
-    return ret;
+    return getIRRectifiedIntr(m_Source_LeftIR, rectified_intr);
 }
 
-TY_STATUS GigE_2_1::getRightIRRectifiedIntr(TY_CAMERA_INTRINSIC& Rectified_intr)
+TY_STATUS GigE_2_1::getRightIRRotation(TY_CAMERA_ROTATION& rotation)
 {
-    TY_STATUS ret = source_init(m_Source_RightIR);
-    if(ret) return ret;
+    return getIRRotation(m_Source_RightIR, rotation);
+}
 
-    int64_t binning = 0;
-    ret = TYEnumGetValue(hDevice, "BinningHorizontal", &binning);
-    if(ret) binning = 1;
-
-    double intrinsic[9];
-    ret = TYByteArrayGetValue(hDevice, "Intrinsic2", reinterpret_cast<uint8_t*>(intrinsic), sizeof(intrinsic));
-    if(TY_STATUS_OK == ret) {
-        Rectified_intr.data[0] = static_cast<float>(intrinsic[0] / binning);
-        Rectified_intr.data[1] = 0;
-        Rectified_intr.data[2] = static_cast<float>(intrinsic[2] / binning);
-
-        Rectified_intr.data[3] = 0;
-        Rectified_intr.data[4] = static_cast<float>(intrinsic[4] / binning);
-        Rectified_intr.data[5] = static_cast<float>(intrinsic[5] / binning);
-
-        Rectified_intr.data[6] = 0;
-        Rectified_intr.data[7] = 0;
-        Rectified_intr.data[8] = 1;
-    }
-    return ret;
+TY_STATUS GigE_2_1::getRightIRRectifiedIntr(TY_CAMERA_INTRINSIC& rectified_intr)
+{
+    return getIRRectifiedIntr(m_Source_RightIR, rectified_intr);
 }
 
 void GigE_2_1::depth_stream_distortion_check(bool& has_undist_data)

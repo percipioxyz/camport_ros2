@@ -23,7 +23,7 @@ static uint32_t StreamConvertComponent(const percipio_stream_index_pair& idx)
         return TY_COMPONENT_DEPTH_CAM;
     case COLOR:
         return TY_COMPONENT_RGB_CAM;
-    case IR_LETF:
+    case IR_LEFT:
         return TY_COMPONENT_IR_CAM_LEFT;
     case IR_RIGHT:
         return TY_COMPONENT_IR_CAM_RIGHT;
@@ -39,7 +39,7 @@ static const char* StreamConvertSourceDesc(const percipio_stream_index_pair& idx
         return "Depth";
     case COLOR:
         return "Texture";
-    case IR_LETF:
+    case IR_LEFT:
         return "Left";
     case IR_RIGHT:
         return "Right";
@@ -179,87 +179,33 @@ TY_CAMERA_INTRINSIC image_intrinsic::data()
     return intr;
 }
 
+void GigEBase::init_component_video_mode(TY_COMPONENT_ID comp, const char* stream_desc)
+{
+    if(!(allComps & comp)) {
+        mVideoMode[comp].clear();
+        return;
+    }
+
+    std::vector<percipio_video_mode> image_mode_list;
+    dump_image_mode_list(comp, image_mode_list);
+    if(!image_mode_list.empty()) {
+        RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), stream_desc << " stream: ");
+        for(const auto& mode : image_mode_list) {
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE),
+                "        " << mode.desc << " " << mode.width << "x" << mode.height);
+        }
+    }
+
+    mVideoMode[comp] = image_mode_list;
+    TYDisableComponents(hDevice, comp);
+}
+
 void GigEBase::video_mode_init()
 {
-    if(allComps & TY_COMPONENT_RGB_CAM) {
-        std::vector<percipio_video_mode> image_mode_list(0);
-        dump_image_mode_list(TY_COMPONENT_RGB_CAM, image_mode_list);
-        if(image_mode_list.size()) {
-            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "color stream: ");
-            for(size_t i = 0; i < image_mode_list.size(); i++) {
-                int m_width = image_mode_list[i].width;
-                int m_height = image_mode_list[i].height;
-                //uint32_t m_fmt = image_mode_list[i].fmt;
-                std::string format_desc = image_mode_list[i].desc;
-                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "        " << format_desc << " " << m_width << "x" << m_height);
-            }
-        }
-
-        mVideoMode[TY_COMPONENT_RGB_CAM] = image_mode_list;
-        TYDisableComponents(hDevice, TY_COMPONENT_RGB_CAM);
-    } else {
-        mVideoMode[TY_COMPONENT_RGB_CAM].clear();
-    }
-
-    if(allComps & TY_COMPONENT_DEPTH_CAM) {
-        std::vector<percipio_video_mode> image_mode_list(0);
-        dump_image_mode_list(TY_COMPONENT_DEPTH_CAM, image_mode_list);
-        if(image_mode_list.size()) {
-            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "depth stream: ");
-            for(size_t i = 0; i < image_mode_list.size(); i++) {
-                int m_width = image_mode_list[i].width;
-                int m_height = image_mode_list[i].height;
-                //uint32_t m_fmt = image_mode_list[i].fmt;
-                std::string format_desc = image_mode_list[i].desc;
-                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "        " << format_desc << " " << m_width << "x" << m_height);
-            }
-        }
-
-        mVideoMode[TY_COMPONENT_DEPTH_CAM] = image_mode_list;
-        TYDisableComponents(hDevice, TY_COMPONENT_DEPTH_CAM);
-    } else {
-        mVideoMode[TY_COMPONENT_DEPTH_CAM] .clear();
-    }
-
-    if(allComps & TY_COMPONENT_IR_CAM_LEFT) {
-        std::vector<percipio_video_mode> image_mode_list(0);
-        dump_image_mode_list(TY_COMPONENT_IR_CAM_LEFT, image_mode_list);
-        if(image_mode_list.size()) {
-            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "left-IR stream: ");
-            for(size_t i = 0; i < image_mode_list.size(); i++) {
-                int m_width = image_mode_list[i].width;
-                int m_height = image_mode_list[i].height;
-                //uint32_t m_fmt = image_mode_list[i].fmt;
-                std::string format_desc = image_mode_list[i].desc;
-                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "        " << format_desc << " " << m_width << "x" << m_height);
-            }
-        }
-
-        mVideoMode[TY_COMPONENT_IR_CAM_LEFT] = image_mode_list;
-        TYDisableComponents(hDevice, TY_COMPONENT_IR_CAM_LEFT);
-    } else {
-        mVideoMode[TY_COMPONENT_IR_CAM_LEFT].clear();
-    }
-
-    if(allComps & TY_COMPONENT_IR_CAM_RIGHT) {
-        std::vector<percipio_video_mode> image_mode_list(0);
-        dump_image_mode_list(TY_COMPONENT_IR_CAM_RIGHT, image_mode_list);
-        if(image_mode_list.size()) {
-            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "right-IR stream: ");
-            for(size_t i = 0; i < image_mode_list.size(); i++) {
-                int m_width = image_mode_list[i].width;
-                int m_height = image_mode_list[i].height;
-                //uint32_t m_fmt = image_mode_list[i].fmt;
-                std::string format_desc = image_mode_list[i].desc;
-                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "        " << format_desc << " " << m_width << "x" << m_height);
-            }
-        }
-
-        mVideoMode[TY_COMPONENT_IR_CAM_RIGHT] = image_mode_list;
-        TYDisableComponents(hDevice, TY_COMPONENT_IR_CAM_RIGHT);
-    } else {
-        mVideoMode[TY_COMPONENT_IR_CAM_RIGHT].clear();
-    }
+    init_component_video_mode(TY_COMPONENT_RGB_CAM,      "color");
+    init_component_video_mode(TY_COMPONENT_DEPTH_CAM,    "depth");
+    init_component_video_mode(TY_COMPONENT_IR_CAM_LEFT,  "left-IR");
+    init_component_video_mode(TY_COMPONENT_IR_CAM_RIGHT, "right-IR");
 }
 
 static std::string WrapXML(const std::string& xml) {
@@ -937,22 +883,7 @@ void PercipioDevice::depthStreamReceive(TYImage& depth, uint64_t& timestamp, int
         }
     } else if(depth.format() == TYPixelFormatCoord3D_ABC16) {
         if(topics_d_registration_) {
-            TYImage p3d = TYImage(depth.width(), depth.height(), TYPixelFormatCoord3D_ABC32f);
-            int16_t* src = (int16_t*)depth.data();
-            float* dst = (float*)p3d.data();
-            for(int i = 0; i < depth.height(); i++) {
-                for(int j = 0; j < depth.width(); j++) {
-                    if(src[3*i*depth.width() + 3*j + 2]) {
-                        dst[3*i*depth.width() + 3*j + 0] = src[3*i*depth.width() + 3*j + 0];
-                        dst[3*i*depth.width() + 3*j + 1] = src[3*i*depth.width() + 3*j + 1];
-                        dst[3*i*depth.width() + 3*j + 2] = src[3*i*depth.width() + 3*j + 2];
-                    } else {
-                        dst[3*i*depth.width() + 3*j + 0] = std::numeric_limits<float>::quiet_NaN();
-                        dst[3*i*depth.width() + 3*j + 1] = std::numeric_limits<float>::quiet_NaN();
-                        dst[3*i*depth.width() + 3*j + 2] = std::numeric_limits<float>::quiet_NaN();
-                    }
-                }
-            }
+            TYImage p3d = convertABC16ToABC32f(depth);
 
             TY_CAMERA_EXTRINSIC extri_inv;
             TYInvertExtrinsic(&cam_color_calib_data.extrinsic, &extri_inv);
@@ -1014,21 +945,7 @@ void PercipioDevice::p3dStreamReceive(const TYImage& depth, uint64_t& timestamp)
             VideoStreamPtr->PointCloudInit(p3d, cam_depth_intrinsic, timestamp);
         }
     } else if(depth.format() == TYPixelFormatCoord3D_ABC16) {
-        int16_t* src = (int16_t*)depth.data();
-        float* dst = (float*)p3d.data();
-        for(int i = 0; i < depth.height(); i++) {
-            for(int j = 0; j < depth.width(); j++) {
-                if(src[3*i*depth.width() + 3*j + 2]) {
-                    dst[3*i*depth.width() + 3*j + 0] = src[3*i*depth.width() + 3*j + 0];
-                    dst[3*i*depth.width() + 3*j + 1] = src[3*i*depth.width() + 3*j + 1];
-                    dst[3*i*depth.width() + 3*j + 2] = src[3*i*depth.width() + 3*j + 2];
-                } else {
-                    dst[3*i*depth.width() + 3*j + 0] = std::numeric_limits<float>::quiet_NaN();
-                    dst[3*i*depth.width() + 3*j + 1] = std::numeric_limits<float>::quiet_NaN();
-                    dst[3*i*depth.width() + 3*j + 2] = std::numeric_limits<float>::quiet_NaN();
-                }
-            }
-        }
+        p3d = convertABC16ToABC32f(depth);
         if(topics_p3d_) {
             VideoStreamPtr->PointCloudInit(p3d, cam_depth_intrinsic, timestamp);
         } else if(topics_color_p3d_) {
@@ -1088,6 +1005,48 @@ void PercipioDevice::softTriggerSend() {
             RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Trigger signal timeout!");
         }
     }
+}
+
+TYImage PercipioDevice::decodeFrameImage(const TY_IMAGE_DATA& image_data)
+{
+    uint32_t dest_size = 0;
+    TYImageInfo image_info = ty_image_info(image_data);
+    TYDecodeError err = TYGetDecodeBufferSize(&image_info, &dest_size, TY_OUTPUT_FORMAT_AUTO);
+    if(err == TY_DECODE_SUCCESS) {
+        std::vector<uint8_t> image_buffer(dest_size);
+        TYDecodeResult ret_info;
+        TYDecodeImage(&image_info, TY_OUTPUT_FORMAT_AUTO, image_buffer.data(), dest_size, &ret_info);
+        TYImage decoded(image_data.width, image_data.height, ret_info.format);
+        if(static_cast<size_t>(dest_size) <= decoded.size()) {
+            memcpy(decoded.data(), image_buffer.data(), dest_size);
+        }
+        return decoded;
+    }
+    return TYImage(image_data.width, image_data.height, image_data.pixelFormat, image_data.buffer);
+}
+
+TYImage PercipioDevice::convertABC16ToABC32f(const TYImage& depth)
+{
+    TYImage p3d(depth.width(), depth.height(), TYPixelFormatCoord3D_ABC32f);
+    const int16_t* src = static_cast<const int16_t*>(depth.data());
+    float* dst = static_cast<float*>(p3d.data());
+    const int width = depth.width();
+    const int height = depth.height();
+    for(int i = 0; i < height; i++) {
+        for(int j = 0; j < width; j++) {
+            int idx = 3 * (i * width + j);
+            if(src[idx + 2]) {
+                dst[idx + 0] = src[idx + 0];
+                dst[idx + 1] = src[idx + 1];
+                dst[idx + 2] = src[idx + 2];
+            } else {
+                dst[idx + 0] = std::numeric_limits<float>::quiet_NaN();
+                dst[idx + 1] = std::numeric_limits<float>::quiet_NaN();
+                dst[idx + 2] = std::numeric_limits<float>::quiet_NaN();
+            }
+        }
+    }
+    return p3d;
 }
 
 void PercipioDevice::frameDataReceive() {
@@ -1172,56 +1131,18 @@ void PercipioDevice::frameDataReceive() {
                 }
 
                 if (frame.image[i].componentID == TY_COMPONENT_RGB_CAM) {
-                    uint32_t destSize;
-                    TYImage color;
-                    std::vector<uint8_t> image_data;
-                    TYImageInfo image_info = ty_image_info(frame.image[i]);
-                    TYDecodeError err = TYGetDecodeBufferSize(&image_info, &destSize, TY_OUTPUT_FORMAT_AUTO);
-                    if(err == TY_DECODE_SUCCESS) {
-                        TYDecodeResult retInfo;
-                        image_data.resize(destSize);
-                        TYDecodeImage(&image_info,  TY_OUTPUT_FORMAT_AUTO, (void*)&image_data[0], destSize, &retInfo);
-                        color = TYImage(frame.image[i].width, frame.image[i].height, retInfo.format, &image_data[0]);
-                    } else {
-                        color = TYImage(frame.image[i].width, frame.image[i].height, frame.image[i].pixelFormat, frame.image[i].buffer);
-                    }
-                    
+                    TYImage color = decodeFrameImage(frame.image[i]);
                     colorStreamReceive(color, frame.image[i].timestamp);
                 }
 
                 if (frame.image[i].componentID == TY_COMPONENT_IR_CAM_LEFT) {
-                    uint32_t destSize;
-                    TYImage leftIR;
-                    std::vector<uint8_t> image_data;
-                    TYImageInfo image_info = ty_image_info(frame.image[i]);
-                    TYDecodeError err = TYGetDecodeBufferSize(&image_info, &destSize, TY_OUTPUT_FORMAT_AUTO);
-                    if(err == TY_DECODE_SUCCESS) {
-                        TYDecodeResult retInfo;
-                        image_data.resize(destSize);
-                        TYDecodeImage(&image_info,  TY_OUTPUT_FORMAT_AUTO, (void*)&image_data[0], destSize, &retInfo);
-                        leftIR = TYImage(frame.image[i].width, frame.image[i].height, retInfo.format, &image_data[0]);
-                    } else {
-                        leftIR = TYImage(frame.image[i].width, frame.image[i].height, frame.image[i].pixelFormat, frame.image[i].buffer);
-                    }
-
-                    leftIRStreamReceive(leftIR, frame.image[i].timestamp);
+                    TYImage left_ir = decodeFrameImage(frame.image[i]);
+                    leftIRStreamReceive(left_ir, frame.image[i].timestamp);
                 }
 
                 if (frame.image[i].componentID == TY_COMPONENT_IR_CAM_RIGHT) {
-                    uint32_t destSize;
-                    TYImage rightIR;
-                    std::vector<uint8_t> image_data;
-                    TYImageInfo image_info = ty_image_info(frame.image[i]);
-                    TYDecodeError err = TYGetDecodeBufferSize(&image_info, &destSize, TY_OUTPUT_FORMAT_AUTO);
-                    if(err == TY_DECODE_SUCCESS) {
-                        TYDecodeResult retInfo;
-                        image_data.resize(destSize);
-                        TYDecodeImage(&image_info,  TY_OUTPUT_FORMAT_AUTO, (void*)&image_data[0], destSize, &retInfo);
-                        rightIR = TYImage(frame.image[i].width, frame.image[i].height, retInfo.format, &image_data[0]);
-                    } else {
-                        rightIR = TYImage(frame.image[i].width, frame.image[i].height, frame.image[i].pixelFormat, frame.image[i].buffer);
-                    }
-                    rightIRStreamReceive(rightIR, frame.image[i].timestamp);
+                    TYImage right_ir = decodeFrameImage(frame.image[i]);
+                    rightIRStreamReceive(right_ir, frame.image[i].timestamp);
                 }
             }
 
@@ -1342,7 +1263,7 @@ void PercipioDevice::depth_speckle_filter_init(bool enable, int spec_size, int s
     f_depth_spk_phy_size = phy_size;
 }
 
-void PercipioDevice::dpeth_time_domain_filter_init(bool enable, int number)
+void PercipioDevice::depth_time_domain_filter_init(bool enable, int number)
 {
     b_depth_time_domain_en = enable;
     m_depth_time_domain_frame_num = number;

@@ -22,7 +22,7 @@ namespace percipio_camera {
 enum percipio_stream_type {
     DEPTH,
     COLOR,
-    IR_LETF,
+    IR_LEFT,
     IR_RIGHT
 };
 
@@ -184,6 +184,9 @@ protected:
 
     percipio_ros2_tinyxml2::XMLDocument m_doc;
     percipio_feat_info parameters;
+
+private:
+    void init_component_video_mode(TY_COMPONENT_ID comp, const char* stream_desc);
 };
 
 class PercipioDevice
@@ -238,7 +241,7 @@ class PercipioDevice
         void topics_depth_registration_enable(bool enable);
 
         void depth_speckle_filter_init(bool enable, int spec_size, int spec_diff, float phy_size);
-        void dpeth_time_domain_filter_init(bool enable, int number);
+        void depth_time_domain_filter_init(bool enable, int number);
 
         void ir_enhance_mode_init(ir_enhance_model mode, int coeff);
         void ir_undistortion_enable(bool en);
@@ -336,6 +339,9 @@ class PercipioDevice
 
         bool resolveStreamResolution(const std::string& resolution_, uint32_t& width, uint32_t& height);
         std::string parseStreamFormat(const std::string& format);
+
+        static TYImage decodeFrameImage(const TY_IMAGE_DATA& image_data);
+        static TYImage convertABC16ToABC32f(const TYImage& depth);
 
         TY_STATUS IREnhancement(TYImage& IR);
         TY_STATUS IRUndistortion(TYImage& IR, const TY_CAMERA_CALIB_INFO *calib_info, const TY_CAMERA_ROTATION *cameraRotation, const TY_CAMERA_INTRINSIC *cameraNewIntrinsic, const TYLensOpticalType type = TY_LENS_PINHOLE);
