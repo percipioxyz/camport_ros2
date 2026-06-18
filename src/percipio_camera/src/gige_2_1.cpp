@@ -207,6 +207,48 @@ TY_STATUS GigE_2_1::work_mode_init(percipio_dev_workmode mode, const bool fix_ra
     return TY_STATUS_OK;
 }
 
+TY_STATUS GigE_2_1::stream_base_info_init()
+{
+    const static TY_COMPONENT_ID comps[] = {
+        TY_COMPONENT_IR_CAM_LEFT,
+        TY_COMPONENT_IR_CAM_RIGHT,
+        TY_COMPONENT_RGB_CAM,
+        TY_COMPONENT_DEPTH_CAM
+    };
+
+    for(auto& comp : comps) {
+        m_stream_base_info[comp].binning = 1; //default
+        m_stream_base_info[comp].max_sensor_width = -1;
+        m_stream_base_info[comp].max_sensor_height = -1;
+        
+        int64_t source = CamComponentIDToSourceIdx(comp);
+        if(source < 0) continue;
+
+        TY_STATUS ret = source_init(source);
+        if(ret) continue;
+
+        int64_t binning = 1;
+        ret = TYEnumGetValue(hDevice, "BinningHorizontal", &binning);
+        if(ret == TY_STATUS_OK) {
+            m_stream_base_info[comp].binning = binning;
+        }
+
+        int64_t m_sensor_width = 0;
+        ret = TYIntegerGetValue(hDevice, "SensorWidth", &m_sensor_width);
+        if(ret == TY_STATUS_OK) {
+            m_stream_base_info[comp].max_sensor_width = m_sensor_width;
+        }
+
+        int64_t m_sensor_height = 0;
+        ret = TYIntegerGetValue(hDevice, "SensorHeight", &m_sensor_height);
+        if(ret == TY_STATUS_OK) {
+            m_stream_base_info[comp].max_sensor_height = m_sensor_height;
+        }
+    }
+
+    return TY_STATUS_OK;
+}
+
 void GigE_2_1::device_load_parameters()
 {
     TY_STATUS status;

@@ -183,6 +183,15 @@ TY_STATUS GigE_2_0::work_mode_init(percipio_dev_workmode mode, const bool fix_ra
     return TY_STATUS_OK;
 }
 
+TY_STATUS GigE_2_0::stream_base_info_init()
+{
+    m_stream_base_info[TY_COMPONENT_IR_CAM_LEFT] = {1, -1, -1};
+    m_stream_base_info[TY_COMPONENT_IR_CAM_RIGHT] = {1, -1, -1};
+    m_stream_base_info[TY_COMPONENT_RGB_CAM] = {1, -1, -1};
+    m_stream_base_info[TY_COMPONENT_DEPTH_CAM] = {1, -1, -1};
+    return TY_STATUS_OK;
+}
+
 void GigE_2_0::device_load_parameters()
 {
     for(auto& iter : parameters) {

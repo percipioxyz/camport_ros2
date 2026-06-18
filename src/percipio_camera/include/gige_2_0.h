@@ -15,6 +15,8 @@ public:
 
     virtual TY_STATUS work_mode_init(percipio_dev_workmode mode, const bool fix_rate, const float rate);
 
+    virtual TY_STATUS stream_base_info_init();
+
     virtual void device_load_parameters();
 
     virtual TY_STATUS stream_calib_data_init(const TY_COMPONENT_ID comp, TY_CAMERA_CALIB_INFO& calib_data);

@@ -22,7 +22,7 @@ TYImage::TYImage(const int _width, const int _height, const TYPixFmt _fmt)
         }
     }
 }
-    
+
 TYImage::TYImage(const int _width, const int _height, const TYPixFmt _fmt, void* data)
         : m_Width(_width), m_Height(_height), m_fmt(_fmt), 
           m_ownsData(false), m_externalData(static_cast<unsigned char*>(data))

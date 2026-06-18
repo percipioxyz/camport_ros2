@@ -123,6 +123,12 @@ typedef struct {
     std::string node_info;
 } device_node_info;
 
+typedef struct {
+    int64_t binning;
+    int64_t max_sensor_width;
+    int64_t max_sensor_height;
+} percipio_stream_info;
+
 typedef std::map<std::string, std::vector<device_node_info>> percipio_feat_info;
 
 class GigEBase
@@ -141,6 +147,8 @@ public:
     virtual float PeriodicSoftTriggerFpS() { return soft_frame_rate; }
 
     virtual TY_STATUS work_mode_init(percipio_dev_workmode mode, const bool fix_rate, const float rate) = 0;
+
+    virtual TY_STATUS stream_base_info_init() = 0;
 
     virtual void device_load_parameters() = 0;
 
@@ -172,6 +180,10 @@ public:
     virtual void reset() = 0;
 
     uint32_t streams() { return allComps;}
+    int64_t get_stream_binning(TY_COMPONENT_ID comp) {
+        auto it = m_stream_base_info.find(comp);
+        return (it != m_stream_base_info.end()) ? it->second.binning : 1;
+    }
 public:
     PercipioVideoMode mVideoMode;
     
@@ -182,6 +194,8 @@ protected:
     bool soft_frame_rate_ctrl_enable = false;
     float soft_frame_rate = 5.f;
 
+    std::map<TY_COMPONENT_ID, percipio_stream_info> m_stream_base_info;
+    
     percipio_ros2_tinyxml2::XMLDocument m_doc;
     percipio_feat_info parameters;
 
@@ -346,10 +360,13 @@ class PercipioDevice
         TY_STATUS IREnhancement(TYImage& IR);
         TY_STATUS IRUndistortion(TYImage& IR, const TY_CAMERA_CALIB_INFO *calib_info, const TY_CAMERA_ROTATION *cameraRotation, const TY_CAMERA_INTRINSIC *cameraNewIntrinsic, const TYLensOpticalType type = TY_LENS_PINHOLE);
 
-        void colorStreamReceive(const TYImage& color, uint64_t& timestamp);
-        void leftIRStreamReceive(TYImage& ir,   uint64_t& timestamp);
-        void rightIRStreamReceive(TYImage& ir,  uint64_t& timestamp);
-        void depthStreamReceive(TYImage& depth, uint64_t& timestamp, int32_t target_width, int32_t target_height);
-        void p3dStreamReceive(const TYImage& depth,   uint64_t& timestamp);
+        TY_CAMERA_CALIB_INFO adjustCalibByBinningCrop(const TY_CAMERA_CALIB_INFO& src_calib, TY_COMPONENT_ID comp, const TY_IMAGE_DATA& image_data);
+        TY_CAMERA_INTRINSIC adjustIntrinsicByBinningCrop(const TY_CAMERA_INTRINSIC& src_intr, TY_COMPONENT_ID comp, const TY_IMAGE_DATA& image_data);
+
+        void colorStreamReceive(const TYImage& color, uint64_t& timestamp, const TY_CAMERA_CALIB_INFO& calib, image_intrinsic& intr);
+        void leftIRStreamReceive(TYImage& ir,   uint64_t& timestamp, const TY_CAMERA_CALIB_INFO& calib, image_intrinsic& intr, const TY_CAMERA_INTRINSIC* rectified_intr);
+        void rightIRStreamReceive(TYImage& ir,  uint64_t& timestamp, const TY_CAMERA_CALIB_INFO& calib, image_intrinsic& intr, const TY_CAMERA_INTRINSIC* rectified_intr);
+        void depthStreamReceive(TYImage& depth, uint64_t& timestamp, int32_t target_width, int32_t target_height, const TY_CAMERA_CALIB_INFO& depth_calib, image_intrinsic& depth_intr, const TY_CAMERA_CALIB_INFO& color_calib, image_intrinsic& color_intr);
+        void p3dStreamReceive(const TYImage& depth,   uint64_t& timestamp, const TY_CAMERA_CALIB_INFO& depth_calib, image_intrinsic& depth_intr, const TY_CAMERA_CALIB_INFO& color_calib, image_intrinsic& color_intr);
 };
 }
