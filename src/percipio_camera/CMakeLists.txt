@@ -165,4 +165,7 @@ install(TARGETS list_devices
 install(TARGETS network_ip_config
   DESTINATION lib/${PROJECT_NAME}/)
 
+install(TARGETS firmware_update
+  DESTINATION lib/${PROJECT_NAME}/)
+  
 ament_package()

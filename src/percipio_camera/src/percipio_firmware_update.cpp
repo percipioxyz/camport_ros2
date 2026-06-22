@@ -76,7 +76,7 @@ int main(int argc, char* argv[])
     std::cout << std::endl;
     
     //discovering devices
-    std::cout << "[1/3] Discovering devices..." << std::endl;
+    std::cout << "[1/4] Discovering devices..." << std::endl;
     uint32_t count = 0;
     upgrade_get_device_count(&count);
     
@@ -112,15 +112,73 @@ int main(int argc, char* argv[])
     //set upgrade log callback
     set_global_log_callback(callback);
     
-    std::cout << "\n[2/3] Starting firmware update..." << std::endl;
+    //query firmware-supported upgrade modes
+    std::cout << "\n[2/4] Querying upgrade modes..." << std::endl;
+    const int MAX_MODES = 16;
+    TY_UPGRADE_MODE_INFO modes[MAX_MODES];
+    uint32_t modeCount = 0;
+    int queryRet = ty_query_upgrade_modes(targetDev, filename.c_str(), modes, MAX_MODES, &modeCount);
+    if (queryRet != 0) {
+        std::cerr << "Error: Failed to query upgrade modes for firmware file. Return code: " << queryRet << std::endl;
+        return -1;
+    }
+    if (modeCount == 0) {
+        std::cerr << "Error: No upgrade modes available for the firmware file." << std::endl;
+        return -1;
+    }
+    
+    std::cout << "  Found " << modeCount << " upgrade mode(s):" << std::endl;
+    for (uint32_t i = 0; i < modeCount; ++i) {
+        std::cout << "    [" << i << "] " << modes[i].mode << std::endl;
+    }
+    
+    //select upgrade mode: use the only mode directly, otherwise let user choose
+    TY_UPGRADE_MODE_INFO selectedMode;
+    if (modeCount == 1) {
+        selectedMode = modes[0];
+        std::cout << "  Only one mode available, using: " << selectedMode.mode << std::endl;
+    } else {
+        for (uint32_t i = 0; i < modeCount; ++i) {
+            std::cout << "\n  --- Mode [" << i << "] " << modes[i].mode << " ---" << std::endl;
+            std::cout << "  Description:" << std::endl;
+            std::cout << "    " << modes[i].name << std::endl;
+        }
+        
+        int selectedIndex = -1;
+        while (true) {
+            std::cout << "\n  Please select an upgrade mode [0-" << (modeCount - 1) << "]: ";
+            std::string input;
+            if (!std::getline(std::cin, input)) {
+                std::cerr << "Error: Failed to read input." << std::endl;
+                return -1;
+            }
+            try {
+                selectedIndex = std::stoi(input);
+            } catch (...) {
+                std::cerr << "  Invalid input, please enter a number." << std::endl;
+                continue;
+            }
+            if (selectedIndex < 0 || selectedIndex >= (int)modeCount) {
+                std::cerr << "  Index out of range, please enter a number between 0 and " << (modeCount - 1) << "." << std::endl;
+                continue;
+            }
+            break;
+        }
+        selectedMode = modes[selectedIndex];
+        std::cout << "  Selected mode: " << selectedMode.mode << std::endl;
+    }
+    
+    //execute firmware upgrade with the selected mode
+    std::cout << "\n[3/4] Starting firmware update..." << std::endl;
     std::cout << "  Device:   " << targetDev->sn << std::endl;
     std::cout << "  File:     " << filename << std::endl;
+    std::cout << "  Mode:     " << selectedMode.mode << std::endl;
     std::cout << "  Progress:" << std::endl;
     
-    FW_UPDATE_STATUS ret = upgrade_device_firmware_from_file(targetDev, filename.c_str(), true);
+    FW_UPDATE_STATUS ret = ty_execute_upgrade_with_mode(targetDev, filename.c_str(), selectedMode, true);
     
     //show result
-    std::cout << "\n[3/3] Result" << std::endl;
+    std::cout << "\n[4/4] Result" << std::endl;
     
     if(ret == UPDATE_STATUS_OK) {
         std::cout << "  ✓ Firmware update successful!" << std::endl;
@@ -130,6 +188,10 @@ int main(int argc, char* argv[])
         std::cerr << "  ✗ Firmware update failed!" << std::endl;
         std::cerr << "  Device: " << targetDev->sn << std::endl;
         std::cerr << "  Error code:   " << ret << std::endl;
+        const char* err = get_last_error(targetDev);
+        if (err) {
+            std::cerr << "  Error detail: " << err << std::endl;
+        }
     }
     
     std::cout << std::endl << "=== Operation completed ===" << std::endl;
