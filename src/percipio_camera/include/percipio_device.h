@@ -360,8 +360,8 @@ class PercipioDevice
         TY_STATUS IREnhancement(TYImage& IR);
         TY_STATUS IRUndistortion(TYImage& IR, const TY_CAMERA_CALIB_INFO *calib_info, const TY_CAMERA_ROTATION *cameraRotation, const TY_CAMERA_INTRINSIC *cameraNewIntrinsic, const TYLensOpticalType type = TY_LENS_PINHOLE);
 
-        TY_CAMERA_CALIB_INFO adjustCalibByBinningCrop(const TY_CAMERA_CALIB_INFO& src_calib, TY_COMPONENT_ID comp, const TY_IMAGE_DATA& image_data);
-        TY_CAMERA_INTRINSIC adjustIntrinsicByBinningCrop(const TY_CAMERA_INTRINSIC& src_intr, TY_COMPONENT_ID comp, const TY_IMAGE_DATA& image_data);
+        TY_CAMERA_CALIB_INFO adjustCalibByBinningCrop(const TY_CAMERA_CALIB_INFO& src_calib, TY_COMPONENT_ID comp, const TY_IMAGE_DATA& image_data, const bool crop = true);
+        TY_CAMERA_INTRINSIC adjustIntrinsicByBinningCrop(const TY_CAMERA_INTRINSIC& src_intr, TY_COMPONENT_ID comp, const TY_IMAGE_DATA& image_data, const bool crop = true);
 
         void colorStreamReceive(const TYImage& color, uint64_t& timestamp, const TY_CAMERA_CALIB_INFO& calib, image_intrinsic& intr);
         void leftIRStreamReceive(TYImage& ir,   uint64_t& timestamp, const TY_CAMERA_CALIB_INFO& calib, image_intrinsic& intr, const TY_CAMERA_INTRINSIC* rectified_intr);
