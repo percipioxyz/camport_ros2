@@ -742,17 +742,48 @@ void PercipioDevice::colorStreamReceive(const TYImage& color, uint64_t& timestam
     }
 }
 
-TY_CAMERA_CALIB_INFO PercipioDevice::adjustCalibByBinningCrop(const TY_CAMERA_CALIB_INFO& src_calib, TY_COMPONENT_ID comp, const TY_IMAGE_DATA& image_data, const bool crop)
+TY_CAMERA_CALIB_INFO PercipioDevice::adjustCalibByBinning(const TY_CAMERA_CALIB_INFO& src_calib, const TY_COMPONENT_ID comp)
 {
     TY_CAMERA_CALIB_INFO dst_calib;
-    int64_t binning = m_gige_dev->get_stream_binning(comp);
-    if(binning < 1) binning = 1;
+    float binning = m_gige_dev->get_stream_binning(comp);
+    if(binning < 0) binning = 1.f;
     int32_t binX = static_cast<int32_t>(binning);
     int32_t binY = static_cast<int32_t>(binning);
-    int32_t cropX = crop ? image_data.cropOffsetX : 0;
-    int32_t cropY = crop ? image_data.cropOffsetY : 0;
-    int32_t width = crop ? image_data.width : (src_calib.intrinsicWidth  / binning);
-    int32_t height = crop ? image_data.height : (src_calib.intrinsicHeight / binning);
+
+    int32_t cropX = 0;
+    int32_t cropY = 0;
+    int32_t width = static_cast<int32_t>(src_calib.intrinsicWidth  / binning);
+    int32_t height = static_cast<int32_t>(src_calib.intrinsicHeight / binning);
+    TY_STATUS status = TYAdjustCalibInfoByBinningCrop(
+        &src_calib, binX, binY,
+        cropX, cropY,
+        width, height, &dst_calib);
+    if(status != TY_STATUS_OK) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE),
+            "adjustCalibByBinning failed(comp=0x" << std::hex << comp << std::dec
+            << ", bin=" << binX << "x" << binY
+            << ", crop=" << cropX << "," << cropY
+            << ", size=" << width << "x" << height
+            << "): " << status << ", fallback to original calib");
+        return src_calib;
+    }
+    return dst_calib;
+}
+
+
+TY_CAMERA_CALIB_INFO PercipioDevice::adjustCalibByBinningCrop(const TY_CAMERA_CALIB_INFO& src_calib, const TY_COMPONENT_ID comp, const TY_IMAGE_DATA& image_data)
+{
+    TY_CAMERA_CALIB_INFO dst_calib;
+    float binning = m_gige_dev->get_stream_binning(comp);
+    if(binning < 0) binning = 1;
+    int32_t binX = static_cast<int32_t>(binning);
+    int32_t binY = static_cast<int32_t>(binning);
+
+    int32_t cropX = image_data.cropOffsetX;
+    int32_t cropY = image_data.cropOffsetY;
+    int32_t width = image_data.width;
+    int32_t height = image_data.height;
+
     TY_STATUS status = TYAdjustCalibInfoByBinningCrop(
         &src_calib, binX, binY,
         cropX, cropY,
@@ -771,17 +802,16 @@ TY_CAMERA_CALIB_INFO PercipioDevice::adjustCalibByBinningCrop(const TY_CAMERA_CA
 
 TY_CAMERA_INTRINSIC PercipioDevice::adjustIntrinsicByBinningCrop(const TY_CAMERA_INTRINSIC& src_intr, TY_COMPONENT_ID comp, const TY_IMAGE_DATA& image_data, const bool crop)
 {
-    int64_t binning = m_gige_dev->get_stream_binning(comp);
-    if(binning < 1) binning = 1;
-    float fbin = static_cast<float>(binning);
+    float binning = m_gige_dev->get_stream_binning(comp);
+    if(binning < 0) binning = 1.f;
     float fcropX = crop ? static_cast<float>(image_data.cropOffsetX) : 0.0f;
     float fcropY = crop ? static_cast<float>(image_data.cropOffsetY) : 0.0f;
     TY_CAMERA_INTRINSIC dst_intr;
     memcpy(dst_intr.data, src_intr.data, sizeof(dst_intr.data));
-    dst_intr.data[0] = src_intr.data[0] / fbin;
-    dst_intr.data[2] = src_intr.data[2] / fbin - fcropX;
-    dst_intr.data[4] = src_intr.data[4] / fbin;
-    dst_intr.data[5] = src_intr.data[5] / fbin - fcropY;
+    dst_intr.data[0] = src_intr.data[0] / binning;
+    dst_intr.data[2] = src_intr.data[2] / binning - fcropX;
+    dst_intr.data[4] = src_intr.data[4] / binning;
+    dst_intr.data[5] = src_intr.data[5] / binning - fcropY;
     return dst_intr;
 }
 
@@ -1143,17 +1173,10 @@ void PercipioDevice::frameDataReceive() {
                     int32_t m_color_width = adj_color_calib.intrinsicWidth;
                     int32_t m_color_height = adj_color_calib.intrinsicHeight;
                     if(has_color_calib_data) {
-                        for (int j = 0; j < frame.validCount; j++){
-                            if (frame.image[j].status == TY_STATUS_OK && frame.image[j].componentID == TY_COMPONENT_RGB_CAM) {
-                                int64_t binning = m_gige_dev->get_stream_binning(frame.image[j].componentID);
-                                if(binning < 1) binning = 1;
-                                m_color_width = cam_color_calib_data.intrinsicWidth / binning;
-                                m_color_height = cam_color_calib_data.intrinsicHeight / binning;
-                                adj_color_calib = adjustCalibByBinningCrop(cam_color_calib_data, TY_COMPONENT_RGB_CAM, frame.image[j], false);
-                                adj_color_intrinsic = image_intrinsic(adj_color_calib.intrinsicWidth, adj_color_calib.intrinsicHeight, adj_color_calib.intrinsic);
-                                break;
-                            }
-                        }
+                        adj_color_calib = adjustCalibByBinning(cam_color_calib_data, TY_COMPONENT_RGB_CAM);
+                        adj_color_intrinsic = image_intrinsic(adj_color_calib.intrinsicWidth, adj_color_calib.intrinsicHeight, adj_color_calib.intrinsic);
+                        m_color_width = adj_color_calib.intrinsicWidth;
+                        m_color_height = adj_color_calib.intrinsicHeight;
                     }
 
                     if(frame.image[i].pixelFormat == TYPixelFormatCoord3D_C16) {

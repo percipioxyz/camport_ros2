@@ -124,9 +124,9 @@ typedef struct {
 } device_node_info;
 
 typedef struct {
-    int64_t binning;
-    int64_t max_sensor_width;
-    int64_t max_sensor_height;
+    float binning;
+    int32_t full_width;
+    int32_t full_height;
 } percipio_stream_info;
 
 typedef std::map<std::string, std::vector<device_node_info>> percipio_feat_info;
@@ -180,9 +180,9 @@ public:
     virtual void reset() = 0;
 
     uint32_t streams() { return allComps;}
-    int64_t get_stream_binning(TY_COMPONENT_ID comp) {
+    float get_stream_binning(TY_COMPONENT_ID comp) {
         auto it = m_stream_base_info.find(comp);
-        return (it != m_stream_base_info.end()) ? it->second.binning : 1;
+        return (it != m_stream_base_info.end()) ? it->second.binning : 1.f;
     }
 public:
     PercipioVideoMode mVideoMode;
@@ -360,8 +360,9 @@ class PercipioDevice
         TY_STATUS IREnhancement(TYImage& IR);
         TY_STATUS IRUndistortion(TYImage& IR, const TY_CAMERA_CALIB_INFO *calib_info, const TY_CAMERA_ROTATION *cameraRotation, const TY_CAMERA_INTRINSIC *cameraNewIntrinsic, const TYLensOpticalType type = TY_LENS_PINHOLE);
 
-        TY_CAMERA_CALIB_INFO adjustCalibByBinningCrop(const TY_CAMERA_CALIB_INFO& src_calib, TY_COMPONENT_ID comp, const TY_IMAGE_DATA& image_data, const bool crop = true);
-        TY_CAMERA_INTRINSIC adjustIntrinsicByBinningCrop(const TY_CAMERA_INTRINSIC& src_intr, TY_COMPONENT_ID comp, const TY_IMAGE_DATA& image_data, const bool crop = true);
+        TY_CAMERA_CALIB_INFO adjustCalibByBinning(const TY_CAMERA_CALIB_INFO& src_calib, const TY_COMPONENT_ID comp);
+        TY_CAMERA_CALIB_INFO adjustCalibByBinningCrop(const TY_CAMERA_CALIB_INFO& src_calib, const TY_COMPONENT_ID comp, const TY_IMAGE_DATA& image_data);
+        TY_CAMERA_INTRINSIC adjustIntrinsicByBinningCrop(const TY_CAMERA_INTRINSIC& src_intr, const TY_COMPONENT_ID comp, const TY_IMAGE_DATA& image_data, const bool crop = true);
 
         void colorStreamReceive(const TYImage& color, uint64_t& timestamp, const TY_CAMERA_CALIB_INFO& calib, image_intrinsic& intr);
         void leftIRStreamReceive(TYImage& ir,   uint64_t& timestamp, const TY_CAMERA_CALIB_INFO& calib, image_intrinsic& intr, const TY_CAMERA_INTRINSIC* rectified_intr);
