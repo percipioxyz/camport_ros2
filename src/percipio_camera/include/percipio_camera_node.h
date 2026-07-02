@@ -36,7 +36,7 @@ class PercipioCameraNode {
             );
 
         void getParameters();
-        void setupDevices();
+        bool setupDevices();
         void setupPublishers();
         void setupSubscribers();
         void setupTopics();
@@ -129,7 +129,7 @@ class PercipioCameraNode {
                                    const std::string &to);
         void publishStaticTransforms();
 
-        void startStreams();
+        bool startStreams();
         void onNewFrame(percipio_camera::VideoStream& stream);
         void publishColorFrame(percipio_camera::VideoStream& stream);
         void publishIRFrame(percipio_camera::VideoStream& stream, const percipio_stream_index_pair& ir_stream);

@@ -297,6 +297,12 @@ TY_STATUS PercipioDevice::device_open(const char* faceId, const char* deviceId)
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Open interface fail : " << status);
         return status;
     }
+
+    status = TYUpdateDeviceList(hIface);
+    if(status != TY_STATUS_OK) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Update device list fail : " << status);
+        return status;
+    }
   
     status = TYOpenDevice(hIface, deviceId, &handle);
     if(status != TY_STATUS_OK) {
@@ -304,6 +310,8 @@ TY_STATUS PercipioDevice::device_open(const char* faceId, const char* deviceId)
         TYCloseInterface(hIface);
         return status;
     }
+
+    RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Open device success : " << deviceId);
 
     status = TYGetDeviceInfo(handle, &base_info);
     if(status != TY_STATUS_OK) {
@@ -432,6 +440,7 @@ static void eventCallback(TY_EVENT_INFO *event_info, void *userdata) {
         handle->_event_callback(handle, &handle->device_ros_event);
 
     if (event_info->eventId == TY_EVENT_DEVICE_OFFLINE) {
+        handle->b_offline_event_pending.store(true);
         handle->offline_detect_cond.notify_one();
     }
 }
@@ -1038,13 +1047,24 @@ void PercipioDevice::device_offline_reconnect() {
         //TODO
         std::unique_lock<std::mutex> lck(offline_detect_mutex);
         offline_detect_cond.wait(lck);
+        b_offline_event_pending.store(false);
         reconnect = true;
         Release();
         while(true) {
             TY_STATUS status = Reconnect();
             if(status == TY_STATUS_OK) {
                 RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device Offline, reconnect ok, now restart stream!");
-                _node->setupDevices();
+                bool setup_ok = _node->setupDevices();
+                if(b_offline_event_pending.exchange(false)) {
+                    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device went offline during reconnection setup, retrying...");
+                    Release();
+                    continue;
+                }
+                if(!setup_ok) {
+                    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device setup failed during reconnection, retrying...");
+                    Release();
+                    continue;
+                }
                 reconnect = false;
                 break;
             }

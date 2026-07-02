@@ -265,6 +265,8 @@ class PercipioDevice
         std::mutex offline_detect_mutex;
         std::condition_variable offline_detect_cond;
 
+        std::atomic_bool b_offline_event_pending{false};
+
         TY_EVENT_INFO device_ros_event;
 
     private:

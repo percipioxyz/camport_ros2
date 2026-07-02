@@ -175,7 +175,7 @@ void PercipioCameraNode::getParameters() {
     }
 }
 
-void PercipioCameraNode::setupDevices() {
+bool PercipioCameraNode::setupDevices() {
     device_ptr_->depth_speckle_filter_init(depth_speckle_filter_enable_, max_speckle_size_, max_speckle_diff_, max_physical_size_);
     device_ptr_->depth_time_domain_filter_init(depth_time_domain_filter_enable_, depth_time_domain_num_);
 
@@ -211,11 +211,15 @@ void PercipioCameraNode::setupDevices() {
 
     for (auto index : PERCIPIO_IMAGE_STREAMS) {
         if(stream_enable_[index]) {
-            device_ptr_->stream_open(index, stream_resolution_[index], stream_image_mode_[index]);   
+            if(!device_ptr_->stream_open(index, stream_resolution_[index], stream_image_mode_[index])) {
+                return false;
+            }
         } else {
             if(index == DEPTH_STREAM) {
                 if(point_cloud_enable_ || color_point_cloud_enable_) {
-                    device_ptr_->stream_open(index, stream_resolution_[index], stream_image_mode_[index]);
+                    if(!device_ptr_->stream_open(index, stream_resolution_[index], stream_image_mode_[index])) {
+                        return false;
+                    }
                 } else {
                     device_ptr_->stream_close(index);
                 }
@@ -242,12 +246,12 @@ void PercipioCameraNode::setupDevices() {
     if(stream_enable_[DEPTH_STREAM])
         depth_scale_ = device_ptr_->getDepthValueScale();
 
-    startStreams();
+    return startStreams();
 }
 
-void PercipioCameraNode::startStreams() {
+bool PercipioCameraNode::startStreams() {
     device_ptr_->setFrameCallback(boost::bind(&PercipioCameraNode::onNewFrame, this, _1));
-    device_ptr_->stream_start();
+    return device_ptr_->stream_start();
 }
 
 void PercipioCameraNode::topic_softtrigger_callback(const std_msgs::msg::String::SharedPtr msg) const
