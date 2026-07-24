@@ -13,6 +13,7 @@ deb依赖项:
 
 3. publish message:
     ros2 launch percipio_camera percipio_camera.launch.py
+    Debug: ros2 launch percipio_camera percipio_camera.launch.py gdb_debug:=true
 
 4. list topics / services / parameters
     ros2 topic list

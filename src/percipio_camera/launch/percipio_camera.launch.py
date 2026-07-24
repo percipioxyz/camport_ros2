@@ -97,6 +97,11 @@ def launch_setup(context, *args, **kwargs):
             parameters[param_name] = param_value
     
     parameters['camera_parameter'] = xml_content
+
+    gdb_debug = LaunchConfiguration('gdb_debug').perform(context)
+    prefix = None
+    if gdb_debug.lower() in ['true', '1', 'yes', 'on']:
+        prefix = 'gdb -q -ex "set pagination off" -ex run -ex "thread apply all bt full" -ex "info registers" --args'
     
     compose_node = ComposableNode(
         package='percipio_camera',
@@ -114,6 +119,7 @@ def launch_setup(context, *args, **kwargs):
         composable_node_descriptions=[
             compose_node,
         ],
+        prefix=prefix,
         output='screen',
     )
     
@@ -134,6 +140,7 @@ def generate_launch_description():
         DeclareLaunchArgument('camera_name', default_value='camera'),
         DeclareLaunchArgument('serial_number', default_value=''),
         DeclareLaunchArgument('device_ip', default_value=''),
+        DeclareLaunchArgument('gdb_debug', default_value='false'),
 
         # Device log configuration
         DeclareLaunchArgument('device_log_enable', default_value='false'),
