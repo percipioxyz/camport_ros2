@@ -70,7 +70,7 @@ PercipioCameraNode::PercipioCameraNode(rclcpp::Node* node, std::shared_ptr<Perci
 
 PercipioCameraNode::~PercipioCameraNode()
 {
-  RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "PercipioCameraNode release...");
+  RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "PercipioCameraNode shutting down");
   if(device_ptr_.get()) {
     device_ptr_->stream_stop();
   }
@@ -183,22 +183,22 @@ bool PercipioCameraNode::setupDevices() {
     device_ptr_->ir_undistortion_enable(ir_undistortion_);
 
     if(!device_ptr_->hasColor()) {
-        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Color image data stream is not supported!");
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Color stream not supported by device");
         stream_enable_[COLOR_STREAM] = false;
     }
 
     if(!device_ptr_->hasDepth()) {
-        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Depth image data stream is not supported!");
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Depth stream not supported by device");
         stream_enable_[DEPTH_STREAM] = false;
     }
 
     if(!device_ptr_->hasLeftIR()) {
-        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Left-IR image data stream is not supported!");
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Left-IR stream not supported by device");
         stream_enable_[LEFT_IR_STREAM] = false;
     }
 
     if(!device_ptr_->hasRightIR()) {
-        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Right-IR image data stream is not supported!");
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Right-IR stream not supported by device");
         stream_enable_[RIGHT_IR_STREAM] = false;
     }
 
@@ -256,19 +256,19 @@ bool PercipioCameraNode::startStreams() {
 
 void PercipioCameraNode::topic_softtrigger_callback(const std_msgs::msg::String::SharedPtr msg) const
 {
-    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "    got soft trigger event: '%s'", msg->data.c_str());
+    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Received soft trigger signal");
     device_ptr_->send_softtrigger();
 }
 
 void PercipioCameraNode::topic_dynamic_config_callback(const std_msgs::msg::String::SharedPtr msg) const
 {
-    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "    got dynamic config event: '%s'", msg->data.c_str());
+    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Received dynamic configuration");
     device_ptr_->setDeviceConfig(msg->data);
 }
 
 void PercipioCameraNode::topic_device_reset_callback(const std_msgs::msg::Empty::SharedPtr) const
 {
-    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "    got device reset event.");
+    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Received device reset request");
     device_ptr_->reset();
 }
 
@@ -347,21 +347,21 @@ void PercipioCameraNode::setupTopics() {
 void PercipioCameraNode::SendOfflineMsg(const char* sn) {
     auto msg = std_msgs::msg::String();
     msg.data = " DeviceOffline<" + std::string(sn) + ">";
-    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Publishing: '%s'", msg.data.c_str());
+    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Device event: %s", msg.data.c_str());
     device_event_publisher_->publish(std::move(msg));
 }
 
 void PercipioCameraNode::SendConnectMsg(const char* sn) {
     auto msg = std_msgs::msg::String();
     msg.data = " DeviceConnect<" + std::string(sn) + ">";
-    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Publishing: '%s'", msg.data.c_str());
+    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Device event: %s", msg.data.c_str());
     device_event_publisher_->publish(std::move(msg));
 }
 
 void PercipioCameraNode::SendTimeoutMsg(const char* sn) {
     auto msg = std_msgs::msg::String();
     msg.data = " DeviceTimeout<" + std::string(sn) + ">";
-    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Publishing: '%s'", msg.data.c_str());
+    RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Device event: %s", msg.data.c_str());
     device_event_publisher_->publish(std::move(msg));
 }
 
@@ -407,7 +407,7 @@ void PercipioCameraNode::publishIRFrame(percipio_camera::VideoStream& stream, co
 
     const TYImage& ir = (ir_stream == LEFT_IR_STREAM) ? stream.getLeftIRImage() : stream.getRightIRImage();
     if(ir.empty()) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "ir image is empty.");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "IR image buffer is empty");
         return;
     }
 
@@ -454,7 +454,7 @@ void PercipioCameraNode::publishDepthFrame(percipio_camera::VideoStream& stream)
     
     const TYImage& image = stream.getDepthImage();
     if(image.empty()) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "depth image is empty.");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Depth image buffer is empty");
         return;
     }
 

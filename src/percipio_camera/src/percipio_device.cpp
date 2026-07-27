@@ -189,7 +189,7 @@ void GigEBase::init_component_video_mode(TY_COMPONENT_ID comp, const char* strea
     std::vector<percipio_video_mode> image_mode_list;
     dump_image_mode_list(comp, image_mode_list);
     if(!image_mode_list.empty()) {
-        RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), stream_desc << " stream: ");
+        RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Available video modes for " << stream_desc << " stream:");
         for(const auto& mode : image_mode_list) {
             RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE),
                 "        " << mode.desc << " " << mode.width << "x" << mode.height);
@@ -224,13 +224,13 @@ int GigEBase::parse_xml_parameters(const std::string& xml)
     std::string wrappedXML = WrapXML(xml);
     percipio_ros2_tinyxml2::XMLError err = m_doc.Parse(wrappedXML.c_str());
     if( err != percipio_ros2_tinyxml2::XML_SUCCESS ){
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "xml parse failed");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "XML configuration parse error");
         return -1;
     }
   
     percipio_ros2_tinyxml2::XMLElement* m_root = m_doc.RootElement();
     if(!m_root){
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "found no root element");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "XML configuration missing root element");
         return -1;
     }
   
@@ -294,13 +294,13 @@ TY_STATUS PercipioDevice::device_open(const char* faceId, const char* deviceId)
     TY_STATUS status;
     status = TYOpenInterface(faceId, &hIface);
     if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Open interface fail : " << status);
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to open interface: " << status);
         return status;
     }
 
     status = TYUpdateDeviceList(hIface);
     if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Update device list fail : " << status);
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to update device list: " << status);
         return status;
     }
   
@@ -311,11 +311,11 @@ TY_STATUS PercipioDevice::device_open(const char* faceId, const char* deviceId)
         return status;
     }
 
-    RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Open device success : " << deviceId);
+    RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device opened successfully: " << deviceId);
 
     status = TYGetDeviceInfo(handle, &base_info);
     if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid device handle  : " << status);
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to retrieve device info: " << status);
         TYCloseDevice(handle);
         TYCloseInterface(hIface);
         return status;
@@ -347,7 +347,7 @@ TY_STATUS PercipioDevice::device_open(const char* faceId, const char* deviceId)
         status = m_gige_dev->stream_calib_data_init(TY_COMPONENT_DEPTH_CAM, cam_depth_calib_data);
         if(status != TY_STATUS_OK) {
             has_depth_calib_data = false;
-            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Got depth stream calib data error: " << status);
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to read depth calibration data: " << status);
         } else {
             has_depth_calib_data = true;
             cam_depth_intrinsic = image_intrinsic(cam_depth_calib_data.intrinsicWidth, cam_depth_calib_data.intrinsicHeight, cam_depth_calib_data.intrinsic);
@@ -360,7 +360,7 @@ TY_STATUS PercipioDevice::device_open(const char* faceId, const char* deviceId)
         status = m_gige_dev->stream_calib_data_init(TY_COMPONENT_RGB_CAM, cam_color_calib_data);
         if(status != TY_STATUS_OK) {
             has_color_calib_data = false;
-            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Got color stream calib data error:" << status);
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to read color calibration data: " << status);
         } else {
             has_color_calib_data = true;
             cam_color_intrinsic = image_intrinsic(cam_color_calib_data.intrinsicWidth, cam_color_calib_data.intrinsicHeight, cam_color_calib_data.intrinsic);
@@ -600,12 +600,12 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
     TY_STATUS status;
     uint32_t m_comp = StreamConvertComponent(idx);
     if(INVALID_COMPONENT_ID == m_comp) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid stream!");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid stream identifier");
         return false;
     }
 
     if((m_comp & m_gige_dev->streams()) != m_comp) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Unsupported component: " << m_comp);
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Component not supported by device: " << m_comp);
         return false;
     }
 
@@ -635,25 +635,25 @@ bool PercipioDevice::stream_open(const percipio_stream_index_pair& idx, const st
         if(video_mode_val_list.size()) {
             status = m_gige_dev->image_mode_cfg(m_comp, video_mode_val_list[0]);
             if(status != TY_STATUS_OK) {
-                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Stream mode(" << StreamConvertSourceDesc(idx) << ") init error: " << status);
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to configure " << StreamConvertSourceDesc(idx) << " stream mode: " << status);
             } else {
-                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Set stream mode(" << StreamConvertSourceDesc(idx) << "): " << video_mode_val_list[0].desc << " " 
+                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Stream mode configured — " << StreamConvertSourceDesc(idx) << ": " << video_mode_val_list[0].desc << " " 
                         << video_mode_val_list[0].width << "x" << video_mode_val_list[0].height);
             }
         } else {
-            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Unsupported stream mode(" << StreamConvertSourceDesc(idx) << "): " << resolution);
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Unsupported " << StreamConvertSourceDesc(idx) << " stream resolution: " << resolution);
         }
     }
 
     status = TYEnableComponents(handle, m_comp);
     if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Stream(" << StreamConvertSourceDesc(idx) << ") open error: " << status);
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to enable " << StreamConvertSourceDesc(idx) << " stream: " << status);
         return false;
     }
 
     if(m_comp == TY_COMPONENT_DEPTH_CAM) {
         m_gige_dev->depth_scale_unit_init(f_scale_unit);
-        RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth stream scale unit: " << f_scale_unit);
+        RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth scale unit: " << f_scale_unit);
     }
 
     if((m_comp == TY_COMPONENT_IR_CAM_LEFT) || (m_comp == TY_COMPONENT_IR_CAM_RIGHT)) {
@@ -694,18 +694,18 @@ bool PercipioDevice::stream_close(const percipio_stream_index_pair& idx)
     TY_STATUS status;
     uint32_t m_comp = StreamConvertComponent(idx);
     if(INVALID_COMPONENT_ID == m_comp) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid stream!");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid stream identifier");
         return false;
     }
 
     if((m_comp & m_gige_dev->streams()) != m_comp) {
-        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Unsupported component: 0x" << std::hex << m_comp << std::dec);
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Component not supported by device: 0x" << std::hex << m_comp << std::dec);
         return false;
     }
 
     status = TYDisableComponents(handle, m_comp);
     if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Stream close error: " << status);
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to disable stream: " << status);
         return false;
     }
 
@@ -738,10 +738,10 @@ void PercipioDevice::colorStreamReceive(const TYImage& color, uint64_t& timestam
                 dst.buffer = (void*)targetRGB.data();
                 TY_STATUS err = TYUndistortImage(&calib, &src, NULL, &dst);
                 if(err) {
-                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Faild to do color undistortImage, error: " << err);
+                    RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Color undistortion failed: " << err);
                 }
             } else {
-                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid color stream fmt: " << color.format());
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Unsupported color pixel format: " << color.format());
                 return;
             }
         } else {
@@ -769,11 +769,11 @@ TY_CAMERA_CALIB_INFO PercipioDevice::adjustCalibByBinning(const TY_CAMERA_CALIB_
         width, height, &dst_calib);
     if(status != TY_STATUS_OK) {
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE),
-            "adjustCalibByBinning failed(comp=0x" << std::hex << comp << std::dec
+            "Calibration binning adjustment failed (comp=0x" << std::hex << comp << std::dec
             << ", bin=" << binX << "x" << binY
             << ", crop=" << cropX << "," << cropY
             << ", size=" << width << "x" << height
-            << "): " << status << ", fallback to original calib");
+            << "): " << status << "), using unadjusted calibration");
         return src_calib;
     }
     return dst_calib;
@@ -799,11 +799,11 @@ TY_CAMERA_CALIB_INFO PercipioDevice::adjustCalibByBinningCrop(const TY_CAMERA_CA
         width, height, &dst_calib);
     if(status != TY_STATUS_OK) {
         RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE),
-            "TYAdjustCalibInfoByBinningCrop failed(comp=0x" << std::hex << comp << std::dec
+            "Calibration binning/crop adjustment failed (comp=0x" << std::hex << comp << std::dec
             << ", bin=" << binX << "x" << binY
             << ", crop=" << cropX << "," << cropY
             << ", size=" << width << "x" << height
-            << "): " << status << ", fallback to original calib");
+            << "): " << status << "), using unadjusted calibration");
         return src_calib;
     }
     return dst_calib;
@@ -840,13 +840,13 @@ TY_STATUS PercipioDevice::IREnhancement(TYImage& IR)
 TY_STATUS PercipioDevice::IRUndistortion(TYImage& IR, const TY_CAMERA_CALIB_INFO *calib_info, const TY_CAMERA_ROTATION *cameraRotation, const TY_CAMERA_INTRINSIC *cameraNewIntrinsic, const TYLensOpticalType type)
 {
     if (!calib_info ) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "IRUndistortion Invalid parameters: calib_info is empty!");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "IR undistortion failed: calibration data unavailable");
         return TY_STATUS_INVALID_PARAMETER;
     }
         
     //Check if IR data is valid
     if (!IR.size() || IR.width() <= 0 || IR.height() <= 0) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "IRUndistortion Invalid IR image data");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "IR undistortion failed: invalid image data");
         return TY_STATUS_INVALID_PARAMETER;
     }
         
@@ -879,7 +879,7 @@ TY_STATUS PercipioDevice::IRUndistortion(TYImage& IR, const TY_CAMERA_CALIB_INFO
     TY_STATUS status = TYUndistortImage2(calib_info, &srcImage, cameraRotation, 
                                         cameraNewIntrinsic, &dstImage, type);
     if (status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "TYUndistortImage2 failed with status: " << status);
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "IR undistortion failed: " << status);
         return status;
     }
     
@@ -945,7 +945,7 @@ void PercipioDevice::depthStreamReceive(TYImage& depth, uint64_t& timestamp, int
             dst.buffer = targetDepth.data();
             
             TY_STATUS err = TYUndistortImage(&depth_calib, &src, NULL, &dst);
-            if(err) RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Faild to do depth undistortImage, error: " << err);
+            if(err) RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth undistortion failed: " << err);
         } else {
             targetDepth = depth;
         }
@@ -1013,7 +1013,7 @@ void PercipioDevice::p3dStreamReceive(const TYImage& depth, uint64_t& timestamp,
             dst.buffer = targetDepth.data();
             TY_STATUS err = TYUndistortImage(&depth_calib, &src, NULL, &dst);
             if(err) {
-                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Faild to do depth undistortImage, error: " << err);
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Depth undistortion failed: " << err);
             }
         } else {
             targetDepth = depth;
@@ -1037,7 +1037,7 @@ void PercipioDevice::p3dStreamReceive(const TYImage& depth, uint64_t& timestamp,
             VideoStreamPtr->PointCloudInit(p3d, color_intr, timestamp);
         }
     } else {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid depth stream fmt: " << depth.format());
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Unsupported depth pixel format: " << depth.format());
     }
 }
 
@@ -1053,7 +1053,7 @@ void PercipioDevice::device_offline_reconnect() {
         while(true) {
             TY_STATUS status = Reconnect();
             if(status == TY_STATUS_OK) {
-                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device Offline, reconnect ok, now restart stream!");
+                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device reconnected, restarting streams");
                 bool setup_ok = _node->setupDevices();
                 if(b_offline_event_pending.exchange(false)) {
                     RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device went offline during reconnection setup, retrying...");
@@ -1081,7 +1081,7 @@ void PercipioDevice::softTriggerSend() {
         uint64_t trig_before = getSystemTime();
         TY_STATUS rc = m_gige_dev->send_soft_trigger_signal();
         if(rc) {
-            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to send soft trigger signal!");
+            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to send soft trigger signal");
         }
         uint64_t trig_after = getSystemTime();
 
@@ -1095,7 +1095,7 @@ void PercipioDevice::softTriggerSend() {
             }
             MSLEEP(delt);
         } else {
-            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Trigger signal timeout!");
+            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Soft trigger deadline missed");
         }
     }
 }
@@ -1148,16 +1148,16 @@ void PercipioDevice::frameDataReceive() {
 
     switch(workmode) {
         case CONTINUOUS:
-            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device now work at continuous mode.");
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Operating mode: continuous streaming");
             break;
         case SOFTTRIGGER:
-            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device now work at soft trigger mode.");
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Operating mode: soft trigger");
             break;
         case HARDTRIGGER:
-            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device now work at hard trigger mode.");
+            RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Operating mode: hardware trigger");
             break;
         default:
-            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Device now work at invalid workmode.");
+            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Operating mode: unknown, defaulting to continuous");
             break;
     }
 
@@ -1169,14 +1169,14 @@ void PercipioDevice::frameDataReceive() {
         } else if(workmode == SOFTTRIGGER) {
             status = TYFetchFrame(handle, &frame, 200);
         } else {
-            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Invalid workmode: " << workmode);
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Unsupported workmode: " << workmode);
             status = TYFetchFrame(handle, &frame, 2000);
         }
 
         if(status == TY_STATUS_OK) {
             float fps = fps_counter.get_fps();
             if(fps > 0) {
-                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "fps = " << fps);
+                RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Frame rate: " << fps << " FPS");
             }
 
             
@@ -1217,7 +1217,7 @@ void PercipioDevice::frameDataReceive() {
                         if(b_depth_time_domain_en) {
                             DepthDomainTimeFilterMgrPtr->add_frame(frame.image[i]);
                             if(!DepthDomainTimeFilterMgrPtr->do_time_domain_process(frame.image[i])) {
-                                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Do Time-domain filter, drop frame!");
+                                RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Time-domain filter applied, frame dropped");
                                 continue;
                             }
                         }
@@ -1260,7 +1260,7 @@ void PercipioDevice::frameDataReceive() {
         }
     }
 
-    RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "frameDataReceive exit...");
+    RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Frame receive thread terminated");
 }
 
 //开启数据流
@@ -1269,7 +1269,7 @@ bool PercipioDevice::stream_start()
     if(b_dev_frame_rate_ctrl_en) {
         if(workmode != CONTINUOUS) {
             workmode = CONTINUOUS;
-            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "The device has enabled the fixed frame rate output mode, the operating mode is force-switched to continuous output mode.");
+            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Fixed frame rate enabled: operating mode overridden to continuous");
         }
     }
     m_gige_dev->work_mode_init(workmode, b_dev_frame_rate_ctrl_en, f_dev_frame_rate);
@@ -1279,7 +1279,7 @@ bool PercipioDevice::stream_start()
     uint32_t frameSize;
     TY_STATUS status = TYGetFrameBufferSize(handle, &frameSize);
     if(status != TY_STATUS_OK) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to get frame buffer size, error: " << status);
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to obtain frame buffer size: " << status);
         return false;
     }
     frameBuffer[0].resize(frameSize);
@@ -1290,7 +1290,7 @@ bool PercipioDevice::stream_start()
 
     status = TYStartCapture(handle);
     if(status != TY_STATUS_OK) {
-      RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to start capture, error: " << status);
+      RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Failed to start stream capture: " << status);
       return false;
     }
 
@@ -1307,7 +1307,7 @@ bool PercipioDevice::stream_start()
 bool PercipioDevice::stream_stop()
 {
     if(!is_running_.load()) {
-        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "The camera's not on yet!");
+        RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Camera is not streaming");
         return false;
     }
 
@@ -1333,7 +1333,7 @@ bool PercipioDevice::stream_stop()
 void PercipioDevice::send_softtrigger()
 {
     if(workmode != SOFTTRIGGER) {
-        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "The camera is not working in soft trigger mode, ignore trigger signal");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Camera is not in soft trigger mode, trigger signal ignored");
         return;
     }
     m_gige_dev->send_soft_trigger_signal();
