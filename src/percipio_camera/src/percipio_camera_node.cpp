@@ -254,7 +254,7 @@ bool PercipioCameraNode::startStreams() {
     return device_ptr_->stream_start();
 }
 
-void PercipioCameraNode::topic_softtrigger_callback(const std_msgs::msg::String::SharedPtr msg) const
+void PercipioCameraNode::topic_softtrigger_callback(const std_msgs::msg::String::SharedPtr) const
 {
     RCLCPP_INFO(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Received soft trigger signal");
     device_ptr_->send_softtrigger();
