@@ -580,11 +580,26 @@ sensor_msgs::msg::CameraInfo VideoStream::convertToCameraInfo(const TY_CAMERA_IN
     ros_cam_info.distortion_model = sensor_msgs::distortion_models::PLUMB_BOB;
     ros_cam_info.d.resize(12, 0.0);
 
+    float fx = intr.data[0];
+    float cx = intr.data[2];
+    float fy = intr.data[4];
+    float cy = intr.data[5];
+
+    // Fallback if intrinsics are invalid (would cause RViz2 Ogre crash)
+    if (fx <= 0.0f || fy <= 0.0f) {
+        RCLCPP_WARN_ONCE(rclcpp::get_logger("VideoStream"),
+            "Invalid camera intrinsics (fx=%.2f, fy=%.2f), using fallback from image dimensions (%dx%d)",
+            fx, fy, width, height);
+        fx = fy = static_cast<float>(width);
+        cx = width / 2.0f;
+        cy = height / 2.0f;
+    }
+
     ros_cam_info.k.fill(0.0);
-    ros_cam_info.k[0] = intr.data[0];   //fx
-    ros_cam_info.k[2] = intr.data[2];   //cx
-    ros_cam_info.k[4] = intr.data[4];   //fy;
-    ros_cam_info.k[5] = intr.data[5];   //cy;
+    ros_cam_info.k[0] = fx;
+    ros_cam_info.k[2] = cx;
+    ros_cam_info.k[4] = fy;
+    ros_cam_info.k[5] = cy;
     ros_cam_info.k[8] = 1.0;
 
     ros_cam_info.r.fill(0.0);

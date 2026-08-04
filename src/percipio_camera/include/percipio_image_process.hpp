@@ -83,7 +83,6 @@ static int GrayIR_linearStretch(percipio_camera::TYImage& grayIR)
             result_buffer[i] = static_cast<uint8_t>(stretched);
         }
     }
-    grayIR.resize(cols, rows);
     memcpy(grayIR.data(), result_buffer.data(), rows * cols * sizeof(uint8_t));
     grayIR.setPixelFormat(TYPixelFormatMono8);
     grayIR.setWidth(cols);
@@ -158,7 +157,7 @@ static int GrayIR_linearStretch_multi(percipio_camera::TYImage& grayIR, double m
         }
     }
     
-    grayIR.resize(cols, rows);
+    
     memcpy(grayIR.data(), result_buffer.data(), totalPixels * sizeof(uint8_t));
     grayIR.setPixelFormat(TYPixelFormatMono8);
     grayIR.setWidth(cols);
@@ -265,8 +264,6 @@ static int GrayIR_linearStretch_std(percipio_camera::TYImage& grayIR, double std
         }
     }
     
-    //Update VideoFrameData
-    grayIR.resize(cols, rows);
     memcpy(grayIR.data(), result_buffer.data(), totalPixels * sizeof(uint8_t));
     grayIR.setPixelFormat(TYPixelFormatMono8);
     grayIR.setWidth(cols);
@@ -337,8 +334,6 @@ static int GrayIR_nonlinearStretch_log2(percipio_camera::TYImage& grayIR, double
         }
     }
     
-    //Update VideoFrameData
-    grayIR.resize(cols, rows);
     memcpy(grayIR.data(), result_buffer.data(), totalPixels * sizeof(uint8_t));
     grayIR.setPixelFormat(TYPixelFormatMono8);
     grayIR.setWidth(cols);
@@ -429,8 +424,6 @@ static int GrayIR_nonlinearStretch_hist(percipio_camera::TYImage& grayIR)
         result_buffer[i] = static_cast<uint8_t>(equalizedValue);
     }
     
-    //Update VideoFrameData
-    grayIR.resize(cols, rows);
     memcpy(grayIR.data(), result_buffer.data(), totalPixels * sizeof(uint8_t));
     grayIR.setPixelFormat(TYPixelFormatMono8);
     grayIR.setWidth(cols);

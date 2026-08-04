@@ -75,6 +75,8 @@ class PercipioCameraNode {
 
         rclcpp::Publisher<std_msgs::msg::String>::SharedPtr device_event_publisher_;
 
+        std::map<percipio_stream_index_pair, std::vector<uint8_t>> image_data_buffers_;
+
         void topic_softtrigger_callback(const std_msgs::msg::String::SharedPtr msg) const;
         rclcpp::Subscription<std_msgs::msg::String>::SharedPtr trigger_event_subscriber_;
 
@@ -136,6 +138,12 @@ class PercipioCameraNode {
         void publishDepthFrame(percipio_camera::VideoStream& stream);
         void publishColorPointCloud(percipio_camera::VideoStream& stream);
         void publishPointCloud(percipio_camera::VideoStream& stream);
+
+        void publishImageMsg(const percipio_stream_index_pair& idx,
+                             const void* data, int width, int height,
+                             const char* encoding, int bytes_per_pixel,
+                             uint64_t timestamp_us,
+                             const sensor_msgs::msg::CameraInfo& info);
 };
 
 

@@ -983,7 +983,7 @@ void PercipioDevice::depthStreamReceive(TYImage& depth, uint64_t& timestamp, int
         return;
     }
 
-    depth = targetDepth.clone();
+    depth = std::move(targetDepth);
     return;
 }
 
