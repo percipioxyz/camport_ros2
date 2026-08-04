@@ -207,7 +207,7 @@ def generate_launch_description():
         # Enable color point cloud stream,  
         # depth_registration_enable will be automatically set to true
         # point_cloud_enable will be automatically set to false
-        DeclareLaunchArgument('color_point_cloud_enable', default_value='true'),
+        DeclareLaunchArgument('color_point_cloud_enable', default_value='false'),
         DeclareLaunchArgument('point_cloud_qos', default_value='default'),
 
         #  IR image enhancement method selection. Choose from:-->
