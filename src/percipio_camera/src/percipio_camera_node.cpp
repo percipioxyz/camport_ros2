@@ -387,13 +387,8 @@ void PercipioCameraNode::publishImageMsg(const percipio_stream_index_pair& idx,
     msg->step = bytes_per_pixel * width;
 
     size_t data_size = msg->step * msg->height;
-
-    auto& buf = image_data_buffers_[idx];
-    if (buf.size() != data_size) {
-        buf.resize(data_size);
-    }
-    memcpy(buf.data(), data, data_size);
-    msg->data.swap(buf);
+    msg->data.resize(data_size);
+    memcpy(msg->data.data(), data, data_size);
 
     image_publishers_[idx]->publish(std::move(msg));
 }

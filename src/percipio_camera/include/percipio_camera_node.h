@@ -75,8 +75,6 @@ class PercipioCameraNode {
 
         rclcpp::Publisher<std_msgs::msg::String>::SharedPtr device_event_publisher_;
 
-        std::map<percipio_stream_index_pair, std::vector<uint8_t>> image_data_buffers_;
-
         void topic_softtrigger_callback(const std_msgs::msg::String::SharedPtr msg) const;
         rclcpp::Subscription<std_msgs::msg::String>::SharedPtr trigger_event_subscriber_;
 
