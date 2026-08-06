@@ -76,20 +76,6 @@ void PercipioCameraNodeDriver::startDevice() {
     }
 }
 
-void PercipioCameraNodeDriver::onCameraEventCallback(PercipioDevice* Handle, TY_EVENT_INFO *event_info)
-{
-    if (event_info->eventId == TY_EVENT_DEVICE_OFFLINE) {
-        RCLCPP_ERROR_STREAM(logger_,  "Device Event Callback: Device Offline, SN = " << Handle->serialNumber());
-        percipio_camera_node_->SendOfflineMsg(Handle->serialNumber().c_str());
-    } else if(event_info->eventId == TY_EVENT_DEVICE_CONNECT) {
-        RCLCPP_INFO_STREAM(logger_,  "Device Event Callback: Device Connect, SN = " << Handle->serialNumber());
-        percipio_camera_node_->SendConnectMsg(Handle->serialNumber().c_str());
-    } else if(event_info->eventId == TY_EVENT_DEVICE_TIMEOUT) {
-        RCLCPP_INFO_STREAM(logger_,  "Device Event Callback: Device Timeout, SN = " << Handle->serialNumber());
-        percipio_camera_node_->SendTimeoutMsg(Handle->serialNumber().c_str());
-    }
-}
-
 bool PercipioCameraNodeDriver::initializeDevice(const TY_DEVICE_BASE_INFO& device) {
     percipio_device_ = std::make_shared<PercipioDevice>(device.iface.id, device.id);
     if(!percipio_device_->isAlive()) 
@@ -111,8 +97,6 @@ bool PercipioCameraNodeDriver::initializeDevice(const TY_DEVICE_BASE_INFO& devic
     else
         percipio_device_->set_workmode(CONTINUOUS);
     
-    percipio_device_->registerCameraEventCallback(boost::bind(&PercipioCameraNodeDriver::onCameraEventCallback, this, _1, _2));
-
     if(device_config_xml_.length()) {
         percipio_device_->setDeviceConfig(device_config_xml_);
     }

@@ -42,6 +42,5 @@ class PercipioCameraNodeDriver : public rclcpp::Node {
     void startDevice();
     bool initializeDevice(const TY_DEVICE_BASE_INFO& device);
     int tycam_log_server_init(bool enable, const std::string& level, int32_t port);
-    void onCameraEventCallback(PercipioDevice* Handle, TY_EVENT_INFO *event_info);
 };
 }

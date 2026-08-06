@@ -124,6 +124,8 @@ class PercipioCameraNode {
         std::vector<geometry_msgs::msg::TransformStamped> static_tf_msgs_;
         std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_ = nullptr;
 
+        void onCameraEventCallback(PercipioDevice* Handle, TY_EVENT_INFO *event_info);
+
         void publishStaticTF(const rclcpp::Time &t, const tf2::Vector3 &trans,
                                    const tf2::Quaternion &q, const std::string &from,
                                    const std::string &to);

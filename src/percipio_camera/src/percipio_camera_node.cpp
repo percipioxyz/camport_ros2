@@ -182,6 +182,8 @@ bool PercipioCameraNode::setupDevices() {
     device_ptr_->ir_enhance_mode_init(ir_enhance_mode_, ir_enhancement_coefficient_);
     device_ptr_->ir_undistortion_enable(ir_undistortion_);
 
+    device_ptr_->registerCameraEventCallback(boost::bind(&PercipioCameraNode::onCameraEventCallback, this, _1, _2));
+
     if(!device_ptr_->hasColor()) {
         RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE), "Color stream not supported by device");
         stream_enable_[COLOR_STREAM] = false;
@@ -624,6 +626,21 @@ void PercipioCameraNode::publishPointCloud(percipio_camera::VideoStream& stream)
     point_cloud_msg->header.stamp = HWTimeUsToROSTime(stream.getPointCloudStreamTimestamp());
     point_cloud_msg->header.frame_id = optical_frame_id_[DEPTH_STREAM];
     point_cloud_pub_->publish(std::move(point_cloud_msg));
+}
+
+
+void PercipioCameraNode::onCameraEventCallback(PercipioDevice* Handle, TY_EVENT_INFO *event_info)
+{
+    if (event_info->eventId == TY_EVENT_DEVICE_OFFLINE) {
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE) ,  "Device Event Callback: Device Offline, SN = " << Handle->serialNumber());
+        SendOfflineMsg(Handle->serialNumber().c_str());
+    } else if(event_info->eventId == TY_EVENT_DEVICE_CONNECT) {
+        RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE) ,  "Device Event Callback: Device Connect, SN = " << Handle->serialNumber());
+        SendConnectMsg(Handle->serialNumber().c_str());
+    } else if(event_info->eventId == TY_EVENT_DEVICE_TIMEOUT) {
+        RCLCPP_INFO_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_CAMERA_NODE),  "Device Event Callback: Device Timeout, SN = " << Handle->serialNumber());
+        SendTimeoutMsg(Handle->serialNumber().c_str());
+    }
 }
 
 void PercipioCameraNode::publishStaticTF(const rclcpp::Time &t, const tf2::Vector3 &trans,
