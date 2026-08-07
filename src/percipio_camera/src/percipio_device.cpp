@@ -1164,6 +1164,7 @@ void PercipioDevice::frameDataReceive() {
     fps_counter.reset();
     while (rclcpp::ok() && is_running_.load()) {
         TY_FRAME_DATA frame;
+        /*
         if(workmode == CONTINUOUS || workmode == HARDTRIGGER) {
             status = TYFetchFrame(handle, &frame, 2000);
         } else if(workmode == SOFTTRIGGER) {
@@ -1171,6 +1172,22 @@ void PercipioDevice::frameDataReceive() {
         } else {
             RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Unsupported workmode: " << workmode);
             status = TYFetchFrame(handle, &frame, 2000);
+        }
+        */
+        int32_t retry_count = 10;
+        while(retry_count-- > 0) {
+            status = TYFetchFrame(handle, &frame, 200);
+            if(status == TY_STATUS_OK) break;
+            else if(status == TY_STATUS_TIMEOUT) continue;
+            else {
+                if((!rclcpp::ok()) || (!is_running_.load())) {
+                    RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Frame fetch interrupted, exiting...");
+                    return;
+                }
+
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Frame fetch failed: " << status);
+                MSLEEP(500);
+            }
         }
 
         if(status == TY_STATUS_OK) {
@@ -1257,6 +1274,9 @@ void PercipioDevice::frameDataReceive() {
                _callback(*VideoStreamPtr.get());
 
             TYEnqueueBuffer(handle, frame.userBuffer, frame.bufferSize);
+        } else if(status != TY_STATUS_TIMEOUT) {
+            RCLCPP_WARN_STREAM(rclcpp::get_logger(LOG_HEAD_PERCIPIO_DEVICE), "Frame fetch failed: " << status);
+            MSLEEP(500);
         }
     }
 
